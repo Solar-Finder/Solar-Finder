@@ -3,6 +3,7 @@
 
 ### Allgemein 
 - https://smartdashboard-pforzheim.vercel.app/klima (City Dashboard Pforzheim)
+- https://webtool.klimaatlas-bw.de/viewer/projection-expert#/kreise/8236?measurementType=temperatur-mittelwert (Klimavorhersage bis 2050)
 ### APIs
 - https://open-meteo.com/en/docs?latitude=48.8844&longitude=8.6989  Wetter API
 - https://dwd.api.bund.dev/ Wetterstationsdaten etc.
