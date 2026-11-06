@@ -13,6 +13,7 @@
 - https://open-meteo.com/en/docs?latitude=48.8844&longitude=8.6989  Wetter API
 - https://dwd.api.bund.dev/ Wetterstationsdaten etc.
 - https://github.com/bundesAPI/marktstammdaten-api API um Solaranlagen in Pforzheim abzurufen
+- https://xapi.niota.io/swagger/v1/#/ Lokale Wetterstationen (Credentials: 2ea01ee4-9907-456d-99f3-db7ac7a7609d)
 ### Bibliotheken
 - https://pvlib-python.readthedocs.io/en/stable/  Simulating the performance of photovoltaic energy systems
 
