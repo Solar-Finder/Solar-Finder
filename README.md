@@ -11,6 +11,7 @@
 - [PDF - Kommunale Wärmeplanung der Stadt Pforzheim](https://cdn.pforzheim-web.de/fileadmin/user_upload/umwelt/klimaschutz/waermeplanung/2025-09-19_Berichtstext_KWP_Pforzheim_final.pdf)
 - [solare-stadt.de](https://www.solare-stadt.de/home/)
 - [energieatlas-bw.de](https://www.energieatlas-bw.de/sonne/freiflaechen/karten?activeLayer=eeg-kulisse)
+  - [Daten von dieser Seite](https://udo.lubw.baden-wuerttemberg.de/projekte/;jsessionid=2307D6B6F7554EA9CD3FF6D396C689B6)
 ### APIs
 - https://open-meteo.com/en/docs?latitude=48.8844&longitude=8.6989  Wetter API
 - https://dwd.api.bund.dev/ Wetterstationsdaten etc.
