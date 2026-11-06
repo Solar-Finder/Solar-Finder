@@ -15,3 +15,16 @@
 - https://github.com/bundesAPI/marktstammdaten-api API um Solaranlagen in Pforzheim abzurufen
 ### Bibliotheken
 - https://pvlib-python.readthedocs.io/en/stable/  Simulating the performance of photovoltaic energy systems
+
+
+
+## Projektstruktur
+
+# Frontend
+- Website (NExtJs)
+
+# Backend
+- ML
+- 
+
+# Data
