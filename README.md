@@ -8,6 +8,7 @@
 - [BürGER GIS](https://www.enzkreis.de/Landratsamt/%C3%84mter-Dezernate/Dezernat-3-Landwirtschaft-Forsten-%C3%B6ffentliche-Ordnung/Vermessungs-und-Flurneuordnungsamt/Vermessungsamt/B%C3%BCrgerGIS/)
 - [daten.bw](https://www.daten-bw.de/)
 - [govdata](https://www.govdata.de)
+- [PDF - Kommunale Wärmeplanung der Stadt Pforzheim](https://cdn.pforzheim-web.de/fileadmin/user_upload/umwelt/klimaschutz/waermeplanung/2025-09-19_Berichtstext_KWP_Pforzheim_final.pdf)
 ### APIs
 - https://open-meteo.com/en/docs?latitude=48.8844&longitude=8.6989  Wetter API
 - https://dwd.api.bund.dev/ Wetterstationsdaten etc.
