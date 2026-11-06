@@ -23,34 +23,48 @@
 
 ## Anforderungsdefintion:
 
-- Webanwendung
-- Interaktives Design (Umschaltung zwischen kwH und Prozent)
-- Vorhersage-Perioden:
-  - 1 Tag in die Zukunft
-  - 10/14 Tage in die Zukunft
-  - Das gesamte Jahr
-- Angabe in kwH und Prozent vom Gesamtenenergiebedarf (Es werden x% vom Gesamtenergiebedarf durch Solarenergie erzeugt?) => Button zum Umschalten
-- Energieerzeugung nicht Netzeinspeisung
-- Vorhersage durch ein neuronales Netz
+Aktueller Stand:
+- Anzeige der installierte Leistung in MW
+- Anzeige der potenziellen Leistung in MWp
+- Anzeige des genutzten Potenzials in Prozent
 
-Anzeige:
-  - 1 Tag: Zahl in kwH und %
-  - 10 Tage: Liniendiagram
-  - Ein gesamtes Jahr: Kurvendiagramm (unterteilt in Jahreszeiten, Steckbrief mit Kennzahl für Jahr und Jahreszeiten) (vom aktuellen Monat aus bis zum Jahres Ende)
+Kartenansicht:
+  - Alle bekannten bestehenden Anlagen (<30kW) anzeigen (farblich)
+  - Alle Gebäude mit scheinbar freiem Potenzial anzeigen (farblich)
+  - Auslastung und Potenzial pro Postleitzahlbereich in Prozent
+  - Filtern nach Gebäudekategorie
+  - Filtern nach Eignungsklassen
+  - Standardkarte und Luftbildkarte
+  - Diagramme:
+      - Pie-Chart: öffentliche Gebäude, private Gebäude, unternehmens-Gebäude
+      - Verschiedene Dächertypen
 
-## Priorisierung
-1. 1 Tag Vorhersage in kwH
-2. 1 Tag Vorhersage in % vom Gesamtenergiebedarf
-3. 10 Tages Vorhersage in kwH (kwH-WErt für jeden Tag)
-4. 10 Tages Vorhersage in kwH als Liniendiagramm
-5. 10 Tages Vorhersage in % vom Gesamtenergiebedarf
-6. Gesamtvorhersage für 1 Kalender Jahr in kWH 
-7. Gesamtvorhersage für 1 Kalender Jahr in kWH als Kurvendiagramm (24 Werte: alle 2 Wochen)
-----------------------optional--------------------------------------
-9. Farbliche Unterteilung des Liniendiagramms in Jahreszeiten
-10. Anzeige der Vorhersage pro Jahreszeit
-11. Tageswetter
-12. Sonnenlichstunden
+Konfiguration:
+  - Einstellung des genutzten Potenzials das erreicht werden soll (Schieberegler - Start bei genutztem Potenzial)
+  - Betrachtungszeitraum (Schieberegler 0 - 30 Jahre)
+  - Anpassung des Strompreises
+ 
+Prognose: 
+  - Neue installierte Leistung in MWp
+  - Energieerzeugnis pro Jahr
+  - Investition
+  - Stromertrag pro Jahr
+  - Amortisation (Auf 0)
+  - CO2-Ersparung
+  - Diagramm:
+    - Anteilig wie viel Energieverbrauch gesamt und durch erneuerbaren Energien
+    - PV-Zuwachs
+    
+Design:
+- Infofelder
+- 3 Bereiche
+- Karte im extra Tab über Button 
+
+ Doku:
+- Schema der Daten festlegen und für die Zukunft festhalten
+- Welche Daten verwendet wurden (Quellen)
+- Architektur-Tree
+  
 
 ## Techstack
 
