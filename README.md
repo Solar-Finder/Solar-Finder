@@ -4,6 +4,10 @@
 ### Allgemein 
 - https://smartdashboard-pforzheim.vercel.app/klima (City Dashboard Pforzheim)
 - https://webtool.klimaatlas-bw.de/viewer/projection-expert#/kreise/8236?measurementType=temperatur-mittelwert (Klimavorhersage bis 2050)
+- https://www.pforzheim.de/stadt/aktuelles/pressemeldungen/s1/article/detail/News/kommunale-waermeplanung-stadt-pforzheim-setzt-massstaebe-fuer-energiewende.html
+- [BürGER GIS](https://www.enzkreis.de/Landratsamt/%C3%84mter-Dezernate/Dezernat-3-Landwirtschaft-Forsten-%C3%B6ffentliche-Ordnung/Vermessungs-und-Flurneuordnungsamt/Vermessungsamt/B%C3%BCrgerGIS/)
+- [daten.bw](https://www.daten-bw.de/)
+- [govdata](https://www.govdata.de)
 ### APIs
 - https://open-meteo.com/en/docs?latitude=48.8844&longitude=8.6989  Wetter API
 - https://dwd.api.bund.dev/ Wetterstationsdaten etc.
