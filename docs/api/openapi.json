@@ -344,6 +344,7 @@
           "map"
         ],
         "summary": "Get Installations",
+        "description": "Verortete MaStR-Anlagen. Mit `category` nur Anlagen auf Gebäuden dieser Kategorie(n).",
         "operationId": "get_installations_api_v1_map_installations_get",
         "parameters": [
           {
@@ -393,6 +394,27 @@
               ],
               "title": "Max Power Kwp"
             }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BuildingCategory"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Gebäudekategorie(n), mehrfach erlaubt",
+              "title": "Category"
+            },
+            "description": "Gebäudekategorie(n), mehrfach erlaubt"
           }
         ],
         "responses": {
@@ -1045,7 +1067,7 @@
           "operating_cost_pct"
         ],
         "title": "BuildingProfile",
-        "description": "Steckbrief für den Hover auf der Karte (Formeln: data_service.building_profile)."
+        "description": "Steckbrief beim Klick auf ein Gebäude in der Karte (Formeln: data_service.building_profile)."
       },
       "BuildingProps": {
         "properties": {

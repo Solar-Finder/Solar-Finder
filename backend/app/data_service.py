@@ -307,7 +307,9 @@ def buildings(bbox=None, postal_code=None, category=None, solar_status=None, lim
     return {"type": "FeatureCollection", "features": feats, "truncated": truncated}
 
 
-def installations(bbox=None, postal_code=None, max_power_kwp: Optional[float] = None):
+def installations(bbox=None, postal_code=None, max_power_kwp: Optional[float] = None, category=None):
+    """Verortete MaStR-Anlagen; mit `category` nur solche, deren zugeordnetes Gebäude passt
+    (Anlagen ohne zugeordnetes Gebäude fallen dann weg, ihre Kategorie ist unbekannt)."""
     m = get_model()
     area = _bbox(bbox)
     units = [u for u in m.units if not postal_code or u["postal_code"] == postal_code]
@@ -320,6 +322,8 @@ def installations(bbox=None, postal_code=None, max_power_kwp: Optional[float] = 
         if max_power_kwp is not None and u["power_kwp"] > max_power_kwp:
             continue
         b = m.by_id.get(u.get("building_id"))
+        if category and (b is None or b.category not in category):
+            continue
         feats.append({
             "type": "Feature", "id": u["id"],
             # Geometrie = gemeldeter MaStR-Standort; building_point = Mitte des zugeordneten Gebäudes

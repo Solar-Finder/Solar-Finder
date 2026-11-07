@@ -121,8 +121,10 @@ def get_installations(
     bbox: Optional[str] = None,
     postal_code: Optional[str] = None,
     max_power_kwp: Optional[float] = None,
+    category: Optional[list[BuildingCategory]] = CategoryQ,
 ):
-    return ds.installations(bbox, postal_code, max_power_kwp)
+    """Verortete MaStR-Anlagen. Mit `category` nur Anlagen auf Gebäuden dieser Kategorie(n)."""
+    return ds.installations(bbox, postal_code, max_power_kwp, category)
 
 
 def _stats_route(path: str, fn):

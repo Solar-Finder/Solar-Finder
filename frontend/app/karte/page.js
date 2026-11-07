@@ -130,14 +130,15 @@ export default function KartePage() {
   useEffect(() => {
     if (filters.view !== "buildings") return;
     const ctrl = new AbortController();
-    getInstallations({ postal_code: apiFilters.postal_code }, { signal: ctrl.signal })
+    // Nur Großanlagen auf Gebäuden der gewählten Kategorie (wie die Gebäude selbst)
+    getInstallations({ postal_code: apiFilters.postal_code, category: apiFilters.category }, { signal: ctrl.signal })
       .then((fc) => {
         setInstallations(fc);
         ok();
       })
       .catch((e) => e.name !== "AbortError" && fail());
     return () => ctrl.abort();
-  }, [filters.view, apiFilters.postal_code]);
+  }, [filters.view, apiFilters.postal_code, apiFilters.category]);
 
   // PV-Übersicht und Diagramme
   useEffect(() => {
@@ -298,7 +299,13 @@ export default function KartePage() {
         </section>
 
         <BreakdownCard title="Dachformen" data={stats.roof} />
-        <BreakdownCard title="Gebäudekategorien" data={stats.cat} />
+        <BreakdownCard
+          title="Gebäudekategorien"
+          data={stats.cat}
+          summaryKey={filters.category || null}
+          totalPotentialMwp={status?.potential_power_mwp}
+          areaLabel={postalLabel ?? "Stadt Pforzheim"}
+        />
         <BreakdownCard title="Eignungsklassen" data={stats.suit} colorFor={(item) => SUITABILITY_COLORS[item.key]} />
       </div>
     </div>
@@ -521,7 +528,55 @@ function LegendList({ items }) {
 }
 
 /* ---------------- Auswertungskarten ---------------- */
-function BreakdownCard({ title, data, colorFor }) {
+// Leistung lesbar: unter 1 MWp in kWp
+const fmtPower = (kwp) => (kwp >= 1000 ? fmtMwp(kwp / 1000) : `${fmtInt(kwp)} kWp`);
+
+function CategorySummary({ title, item, totalPotentialMwp, areaLabel }) {
+  const pot = item?.potential_kwp ?? 0;
+  // Anteil am Gesamtpotenzial (gleicher Wert wie „Potenzial“ in der PV-Übersicht)
+  const share = item && totalPotentialMwp > 0 ? (pot / 1000 / totalPotentialMwp) * 100 : null;
+  return (
+    <section className={`card ${s.breakdown}`}>
+      <h2 className={s.cardTitle}>{title}</h2>
+      <p className={s.cardSub}>{item ? item.label : "–"}</p>
+      <div className={s.modelValues}>
+        <div className={s.modelValue}>
+          <span>Gebäude</span>
+          <strong>{item ? fmtInt(item.building_count) : "–"}</strong>
+        </div>
+        <div className={s.modelValue}>
+          <span>Potenzial</span>
+          <strong>{item ? fmtPower(pot) : "–"}</strong>
+        </div>
+        <div className={s.coverage}>
+          <div className={s.modelValue}>
+            <span>Anteil am Gesamtpotenzial</span>
+            <strong className={s.coverageValue}>{share == null ? "–" : fmtPct(share, 1)}</strong>
+          </div>
+          <div className={s.coverageBar} role="presentation">
+            <i style={{ width: `${Math.min(share ?? 0, 100)}%` }} />
+          </div>
+          <p className={s.countNote}>
+            {totalPotentialMwp != null ? `von ${fmtMwp(totalPotentialMwp)} · ${areaLabel}` : ""}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BreakdownCard({ title, data, colorFor, summaryKey, totalPotentialMwp, areaLabel }) {
+  // Nur eine Kategorie gefiltert → Kreisdiagramm wäre immer 100 %; stattdessen Kennzahlen
+  if (summaryKey) {
+    return (
+      <CategorySummary
+        title={title}
+        item={data?.items?.find((it) => it.key === summaryKey)}
+        totalPotentialMwp={totalPotentialMwp}
+        areaLabel={areaLabel}
+      />
+    );
+  }
   const items = (data?.items ?? []).filter((it) => it.building_count > 0);
   const pending = data?.data_status === "pending";
   const color = (it, i) => colorFor?.(it) ?? CHART_COLORS[i % CHART_COLORS.length];
