@@ -352,7 +352,10 @@ function buildingProfileHtml(p, labels) {
   notes.push(
     `Preise laut Tabelle (Stand 2025) · laufende Kosten ${fmtFlex(pr.operating_cost_pct, 1)} % der Anschaffung/Jahr · ` +
       `Strompreis ${fmtFlex(pr.electricity_price_ct_per_kwh, 1)} ct/kWh ` +
-      (pr.electricity_price_is_example ? "(Beispiel)" : "(Börsenpreis SMARD, Tageswert)")
+      (pr.electricity_price_is_example ? "(Beispiel)" : "(Börsenpreis SMARD, Tageswert)") +
+      (pr.price_increase_ct_per_kwh_per_year
+        ? `, steigt um ${fmtFlex(pr.price_increase_ct_per_kwh_per_year, 1)} ct/kWh pro Jahr (Energieatlas BW)`
+        : "")
   );
 
   return (

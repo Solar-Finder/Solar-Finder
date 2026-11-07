@@ -39,6 +39,32 @@ INVESTMENT_EUR_PER_KWP = 900.0
 CONSUMPTION_GWH_PER_YEAR = 300.0
 ELECTRICITY_PRICE_FALLBACK_CT = 18.0  # nur falls der Strompreis noch nie abgerufen werden konnte
 OPERATING_COST_PCT = costs.OPERATING_COST_PCT  # laufende Kosten: 1 % der Anschaffung pro Jahr (Vorgabe)
+# Strompreissteigerung: Energieatlas BW (LUBW), Grundlagen PV-Dachflächen, „Steigerung der Stromkosten“:
+# „Im Wirtschaftlichkeitsrechner wird mit einer Steigerung der Strompreise von 0,6 Cent/kWh pro Jahr gerechnet“
+# (Mittelwert mehrerer konservativer Schätzungen).
+PRICE_INCREASE_CT_PER_YEAR = 0.6
+PRICE_INCREASE_SOURCE = "Energieatlas Baden-Württemberg (LUBW), Grundlagen PV-Dachflächen – Steigerung der Stromkosten"
+PRICE_INCREASE_URL = "https://www.energieatlas-bw.de/sonne/gebaeude/grundlagen"
+AMORTIZATION_MAX_YEARS = 100  # Suche nach dem Amortisationszeitpunkt über den Zeitraum hinaus
+
+
+def _net_for_year(year: int, energy_kwh: float, price0_ct: float, opex: float) -> float:
+    """Überschuss im Jahr `year` (1 = erstes Jahr, Strompreis = Ausgangswert, danach +0,6 ct/kWh je Jahr)."""
+    price_ct = price0_ct + PRICE_INCREASE_CT_PER_YEAR * (year - 1)
+    return energy_kwh * price_ct / 100 - opex
+
+
+def _amortization(investment: float, energy_kwh: float, price0_ct: float, opex: float) -> Optional[float]:
+    """Zeitpunkt (Jahre, anteilig im Jahr), ab dem der kumulierte Überschuss die Investition deckt."""
+    if investment <= 0:
+        return 0.0
+    balance = -investment
+    for year in range(1, AMORTIZATION_MAX_YEARS + 1):
+        net = _net_for_year(year, energy_kwh, price0_ct, opex)
+        if net > 0 and balance + net >= 0:
+            return round(year - 1 + (-balance) / net, 1)
+        balance += net
+    return None
 
 
 def electricity_price() -> dict:
@@ -236,7 +262,8 @@ def building_profile(b: Building, price_ct: float, price_is_example: bool = Fals
     - Anschaffungskosten = offene kWp × Preis je kWp der Größenstufe (costs.py, Tabelle in data/).
     - Laufende Kosten = 1 % der Anschaffungskosten pro Jahr.
     - Ertrag/CO₂ des Ausbaus = offene kWp × spezifischer Ertrag bzw. CO₂ je kWp dieses Gebäudes (LUBW).
-    - Amortisation = Anschaffungskosten ÷ (Ertrag × Strompreis − laufende Kosten); Strompreis = SMARD Day-Ahead.
+    - Amortisation = Zeitpunkt, ab dem Σ (Ertrag × Strompreis im Jahr t − laufende Kosten) ≥ Anschaffungskosten;
+      Strompreis = SMARD Day-Ahead im 1. Jahr, danach +0,6 ct/kWh je Jahr (Energieatlas BW) – wie im Rechner.
     Ist die Anlage größer als das LUBW-Potenzial, gilt das Dach als zu 100 % ausgeschöpft.
     Hat ein Gebäude nur eine in OSM erfasste Anlage (Leistung unbekannt), wird kein Ausbau gerechnet.
     """
@@ -257,6 +284,7 @@ def building_profile(b: Building, price_ct: float, price_is_example: bool = Fals
         "amortization_years": None,
         "electricity_price_ct_per_kwh": price_ct,
         "electricity_price_is_example": price_is_example,
+        "price_increase_ct_per_kwh_per_year": PRICE_INCREASE_CT_PER_YEAR,
         "operating_cost_pct": costs.OPERATING_COST_PCT,
     }
     if b.has_solar and known:
@@ -274,7 +302,6 @@ def building_profile(b: Building, price_ct: float, price_is_example: bool = Fals
     invest = open_kwp * price
     opex = invest * costs.OPERATING_COST_PCT / 100
     energy = open_kwp * b.potential_kwh_per_year / b.potential_kwp
-    net = energy * price_ct / 100 - opex
     p.update({
         "price_eur_per_kwp": price,
         "price_outside_table": outside,
@@ -282,7 +309,7 @@ def building_profile(b: Building, price_ct: float, price_is_example: bool = Fals
         "operating_cost_eur_per_year": round(opex),
         "energy_kwh_per_year": round(energy),
         "co2_savings_kg_per_year": round(open_kwp * b.co2_savings_kg_per_year / b.potential_kwp),
-        "amortization_years": round(invest / net, 1) if net > 0 else None,
+        "amortization_years": _amortization(invest, energy, price_ct, opex),
     })
     return p
 
@@ -408,7 +435,10 @@ def forecast(req: ForecastRequest) -> ForecastResponse:
     """Zusätzlicher Dach-PV-Ausbau bis zur Ziel-Ausnutzung des LUBW-Potenzials.
 
     Ertrag und CO₂ aus LUBW, Bestand aus MaStR (Gebäudesolaranlagen); Kosten und Verbrauch
-    sind Beispielwerte. Konstante Erträge und Preise, ohne Zinsen, Steuern und Degradation.
+    sind Beispielwerte. Investition = Anschaffung + Instandhaltung (1 %/Jahr) über den Zeitraum;
+    Gewinn und Amortisation zählen dagegen nur den Stromwert (keine doppelte Instandhaltung).
+    Strompreis steigt jährlich um 0,6 ct/kWh (Energieatlas BW); konstante Erträge, ohne Zinsen,
+    Steuern und Degradation.
     """
     m = get_model()
     t = _totals()
@@ -420,11 +450,20 @@ def forecast(req: ForecastRequest) -> ForecastResponse:
     specific_yield = lt["specific_yield_kwh_per_kwp"]   # kWh/kWp, LUBW
     co2_factor = lt["co2_kg_per_kwh"]                    # kg/kWh, LUBW
     energy_kwh = new_kwp * specific_yield
-    investment = new_kwp * INVESTMENT_EUR_PER_KWP
-    value = energy_kwh * req.electricity_price_ct_per_kwh / 100
-    opex = investment * OPERATING_COST_PCT / 100
-    net = value - opex
-    amortization = round(investment / net, 1) if net > 0 and investment > 0 else (0.0 if investment == 0 else None)
+    # Investition (gesamt) = Anschaffung + Instandhaltung (1 % der Anschaffung pro Jahr) über den Zeitraum.
+    # Die Instandhaltung steckt damit vollständig in der Investition und wird bei Saldo, Gewinn und
+    # Amortisation NICHT noch einmal jährlich abgezogen (dort zählt nur der Stromwert).
+    purchase = new_kwp * INVESTMENT_EUR_PER_KWP
+    opex = purchase * OPERATING_COST_PCT / 100
+    maintenance_total = opex * req.horizon_years
+    investment = purchase + maintenance_total
+    price0 = req.electricity_price_ct_per_kwh
+    revenues = [_net_for_year(y, energy_kwh, price0, 0.0) for y in range(1, req.horizon_years + 1)]  # Stromwert je Jahr
+    cumulative = [-investment]
+    for r in revenues:
+        cumulative.append(cumulative[-1] + r)
+    value = sum(revenues) / len(revenues) if revenues else 0.0  # Ø Stromwert (Preis steigt jährlich)
+    amortization = _amortization(investment, energy_kwh, price0, 0.0)
     co2_t = energy_kwh * co2_factor / 1000
     start_year = _iso(m.retrieved["mastr"]).year
 
@@ -435,7 +474,9 @@ def forecast(req: ForecastRequest) -> ForecastResponse:
         target_power_mwp=round(target_kwp / 1000, 1),
         new_power_mwp=round(new_kwp / 1000, 1),
         investment_eur=round(investment),
-        profit_eur=round(-investment + req.horizon_years * net),
+        purchase_cost_eur=round(purchase),
+        maintenance_cost_total_eur=round(maintenance_total),
+        profit_eur=round(cumulative[-1]),
         electricity_value_eur_per_year=round(value),
         operating_cost_eur_per_year=round(opex),
         amortization_years=amortization,
@@ -451,16 +492,21 @@ def forecast(req: ForecastRequest) -> ForecastResponse:
             operating_cost_pct_of_investment=OPERATING_COST_PCT,
             co2_kg_per_kwh=round(co2_factor, 3),
             consumption_gwh_per_year=CONSUMPTION_GWH_PER_YEAR,
+            price_increase_ct_per_kwh_per_year=PRICE_INCREASE_CT_PER_YEAR,
+            price_increase_source=PRICE_INCREASE_SOURCE,
+            price_increase_url=PRICE_INCREASE_URL,
             status={
                 "specific_yield_kwh_per_kwp": DataStatus.verified,
                 "co2_kg_per_kwh": DataStatus.verified,
                 "investment_eur_per_kwp": DataStatus.example,
                 "operating_cost_pct_of_investment": DataStatus.example,
                 "consumption_gwh_per_year": DataStatus.example,
+                "price_increase_ct_per_kwh_per_year": DataStatus.verified,
             },
         ),
         timeline=[
-            ForecastYear(year_index=i, year=start_year + i, cumulative_balance_eur=round(-investment + i * net))
+            ForecastYear(year_index=i, year=start_year + i, cumulative_balance_eur=round(cumulative[i]),
+                         electricity_price_ct_per_kwh=round(price0 + PRICE_INCREASE_CT_PER_YEAR * max(i - 1, 0), 2))
             for i in range(req.horizon_years + 1)
         ],
     )

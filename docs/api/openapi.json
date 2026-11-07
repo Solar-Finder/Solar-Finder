@@ -1055,6 +1055,11 @@
             "title": "Electricity Price Is Example",
             "default": false
           },
+          "price_increase_ct_per_kwh_per_year": {
+            "type": "number",
+            "title": "Price Increase Ct Per Kwh Per Year",
+            "default": 0.0
+          },
           "operating_cost_pct": {
             "type": "number",
             "title": "Operating Cost Pct"
@@ -1315,6 +1320,33 @@
             "type": "number",
             "title": "Consumption Gwh Per Year"
           },
+          "price_increase_ct_per_kwh_per_year": {
+            "type": "number",
+            "title": "Price Increase Ct Per Kwh Per Year",
+            "default": 0.0
+          },
+          "price_increase_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Increase Source"
+          },
+          "price_increase_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Increase Url"
+          },
           "status": {
             "additionalProperties": {
               "$ref": "#/components/schemas/DataStatus"
@@ -1387,6 +1419,16 @@
           "investment_eur": {
             "type": "number",
             "title": "Investment Eur"
+          },
+          "purchase_cost_eur": {
+            "type": "number",
+            "title": "Purchase Cost Eur",
+            "default": 0.0
+          },
+          "maintenance_cost_total_eur": {
+            "type": "number",
+            "title": "Maintenance Cost Total Eur",
+            "default": 0.0
           },
           "profit_eur": {
             "type": "number",
@@ -1482,6 +1524,11 @@
           "cumulative_balance_eur": {
             "type": "number",
             "title": "Cumulative Balance Eur"
+          },
+          "electricity_price_ct_per_kwh": {
+            "type": "number",
+            "title": "Electricity Price Ct Per Kwh",
+            "default": 0.0
           }
         },
         "type": "object",

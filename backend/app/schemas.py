@@ -164,6 +164,7 @@ class BuildingProfile(BaseModel):
     amortization_years: Optional[float] = None  # None: Erträge decken die laufenden Kosten nicht
     electricity_price_ct_per_kwh: float     # SMARD Day-Ahead (Tageswert), sonst Beispielwert
     electricity_price_is_example: bool = False
+    price_increase_ct_per_kwh_per_year: float = 0.0  # jährliche Strompreissteigerung (Energieatlas BW)
     operating_cost_pct: float               # % der Anschaffungskosten pro Jahr
 
 
@@ -266,6 +267,7 @@ class ForecastYear(BaseModel):
     year_index: int  # 0 = Start
     year: int
     cumulative_balance_eur: float  # < 0 bis Amortisation
+    electricity_price_ct_per_kwh: float = 0.0  # Strompreis in diesem Jahr (Ausgangswert + 0,6 ct/kWh je Jahr)
 
 
 class ForecastAssumptions(BaseModel):
@@ -274,6 +276,9 @@ class ForecastAssumptions(BaseModel):
     operating_cost_pct_of_investment: float
     co2_kg_per_kwh: float                   # LUBW Σ CO2Savings / Σ Yield
     consumption_gwh_per_year: float
+    price_increase_ct_per_kwh_per_year: float = 0.0  # jährliche Strompreissteigerung
+    price_increase_source: Optional[str] = None
+    price_increase_url: Optional[str] = None
     status: dict[str, DataStatus]           # Herkunft je Annahme (verified = aus Daten, example = Beispielwert)
 
 
@@ -283,10 +288,12 @@ class ForecastResponse(BaseModel):
     potential_power_mwp: float
     target_power_mwp: float
     new_power_mwp: float
-    investment_eur: float
+    investment_eur: float              # gesamt = Anschaffung + Instandhaltung über den Zeitraum
+    purchase_cost_eur: float = 0.0     # Anschaffung (einmalig)
+    maintenance_cost_total_eur: float = 0.0  # Instandhaltung: 1 % der Anschaffung × Jahre
     profit_eur: float
-    electricity_value_eur_per_year: float
-    operating_cost_eur_per_year: float
+    electricity_value_eur_per_year: float  # Ø über den Zeitraum (Strompreis steigt jährlich)
+    operating_cost_eur_per_year: float  # Instandhaltung pro Jahr (in investment_eur enthalten)
     amortization_years: Optional[float]
     energy_per_year_mwh: float
     energy_total_mwh: float

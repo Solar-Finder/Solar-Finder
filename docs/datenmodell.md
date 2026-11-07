@@ -137,13 +137,15 @@ Eingaben: Ziel-Ausnutzung `p` (%), Zeitraum `T` (Jahre), Strompreis `c` (ct/kWh)
 | Energieertrag pro Jahr | `E = P_neu × y` | LUBW |
 | CO₂-Faktor | `f = Σ CO2Savings ÷ Σ Yield` = 0,46 kg/kWh | **LUBW** |
 | CO₂-Einsparung pro Jahr | `E × f` | LUBW |
-| Investition | `P_neu × 900 €/kWp` | example |
-| Betriebskosten pro Jahr | 1 % der Investition (Vorgabe) | example |
-| Stromertrag pro Jahr (€) | `E × c / 100` | Eingabe |
-| Amortisation | Investition ÷ (Stromertrag − Betriebskosten) | abgeleitet |
+| Anschaffung | `P_neu × 900 €/kWp` | example |
+| Instandhaltung pro Jahr | 1 % der Anschaffung (Vorgabe) | example |
+| Investition (gesamt) | Anschaffung + Instandhaltung × T – die Instandhaltung ist damit vollständig enthalten | abgeleitet |
+| Stromwert im Jahr t (€) | `E × c_t / 100`, `c_t = c + 0,6 ct/kWh × (t − 1)` | Eingabe + Energieatlas BW |
+| Gewinn | Σ Stromwert (Jahr 1…T) − Investition (gesamt); Instandhaltung **nicht** zusätzlich abgezogen | abgeleitet |
+| Amortisation | Zeitpunkt, ab dem Σ Stromwert ≥ Investition (gesamt); hängt damit auch von T ab; Strompreis im Jahr t = Ausgangswert + 0,6 ct/kWh × (t − 1) ([Energieatlas BW](https://www.energieatlas-bw.de/sonne/gebaeude/grundlagen), „Steigerung der Stromkosten“) | abgeleitet |
 | Anteil am Verbrauch | `E ÷ 300 GWh` | example |
 
-Vereinfachungen: konstante Erträge und Preise, keine Degradation, keine Zinsen, alle neuen
+Vereinfachungen: konstante Erträge, Strompreis steigt linear um 0,6 ct/kWh pro Jahr, keine Degradation, keine Zinsen, alle neuen
 Anlagen gleichzeitig im Jahr 0. Der spezifische Ertrag ist der Mittelwert **aller** geeigneten
 Dachflächen. Es wird nicht angenommen, dass zuerst die besten Dächer belegt werden.
 
@@ -164,7 +166,7 @@ Berechnet in `data_service.building_profile`, je Gebäude:
 | Anschaffungskosten | offen × Preis je kWp der Größenstufe von „offen“ aus `data/Tabelle_Anschaffungskosten_PVprokWp.md` (Nettopreise, Stand 2025); über 200 kWp: Preis der Stufe „bis 200“ (810 €/kWp) |
 | Laufende Kosten | 1 % der Anschaffungskosten pro Jahr |
 | Stromertrag | offen × (Σ `Yield` ÷ Σ `Power`) des Gebäudes |
-| Amortisation | Anschaffungskosten ÷ (Stromertrag × Strompreis − laufende Kosten); Strompreis = SMARD Day-Ahead (Tageswert) |
+| Amortisation | Zeitpunkt, ab dem Σ (Stromertrag × Strompreis im Jahr t − laufende Kosten) ≥ Anschaffungskosten; Strompreis = SMARD Day-Ahead im 1. Jahr, danach +0,6 ct/kWh je Jahr (Energieatlas BW) |
 | CO₂-Einsparung | offen × (Σ `CO2Savings` ÷ Σ `Power`) des Gebäudes |
 
 Der Steckbrief hat immer dieselben Zeilen. Ist eine Anlage nur in OpenStreetMap erfasst (Leistung
