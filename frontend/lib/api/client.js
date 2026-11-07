@@ -79,9 +79,10 @@ export const getPostalAreas = (postal_code, opts) =>
 export const getBuildings = (filters, opts) => request("/map/buildings", { ...opts, query: filters });
 
 /**
- * Alle Gebäude als kompakte Punktliste [[lon, lat, status], …] (1 = Anlage, 2 = Potenzial)
+ * Alle Gebäude als kompakte Punktliste [[lon, lat, status, eignungsklasse, potenzial_kwp], …]
+ * (status 1 = Anlage, 2 = Potenzial, 0 = kein nennenswertes Potenzial; Klasse und kWp laut LUBW)
  * @param {{postal_code?: string, category?: string[], solar_status?: string[]}} [filters]
- * @returns {Promise<{status_codes: Record<string, string>, points: [number, number, number][]}>}
+ * @returns {Promise<{status_codes: Record<string, string>, points: [number, number, number, number, number][]}>}
  */
 export const getBuildingPoints = (filters, opts) => request("/map/building-points", { ...opts, query: filters });
 

@@ -344,14 +344,87 @@ fieldset.group:disabled .classChip {
 
 .legendHead {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 8px;
   font-size: 12px;
 }
 
-.legendHead span {
+.legendHead strong {
+  margin-right: auto;
+}
+
+.legendHead > span {
   font-size: 10px;
   color: var(--text-subtle);
+}
+
+/* Pfeil rechts oben in der Legende – gleicher Stil wie der Griff der Kartenansicht */
+.legendToggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: -4px -4px -4px 0;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-small);
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.legendToggle:hover {
+  background: var(--pf-blue-50);
+  border-color: var(--pf-blue-200);
+}
+
+.legendToggle:focus-visible {
+  outline: 2px solid var(--pf-blue);
+  outline-offset: 2px;
+}
+
+.legendToggle img {
+  transition: transform 0.2s ease;
+}
+
+/* Ausgeklappt zeigt der Pfeil nach unten (einklappen), eingeklappt nach oben (ausklappen) */
+.legendChevronUp {
+  transform: rotate(180deg);
+}
+
+/* Inhalt klappt über die Zeilenhöhe ein: 1fr → 0fr; die Legende ist unten verankert,
+   ihre Oberkante wandert dadurch nach unten */
+.legendBody {
+  display: grid;
+  grid-template-rows: 1fr;
+  margin-top: -8px; /* hebt das gap der Legende auf, Abstand kommt aus legendBodyInner */
+  transition: grid-template-rows 0.2s ease;
+}
+
+.legendCollapsed .legendBody {
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition: grid-template-rows 0.2s ease, visibility 0s 0.2s;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.legendBodyInner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding-top: 8px;
+  overflow: hidden;
 }
 
 .legend hr {
@@ -391,6 +464,12 @@ fieldset.group:disabled .classChip {
   height: 12px;
   border: 1px solid rgba(17, 24, 39, 0.12);
   border-radius: 2px;
+}
+
+/* Wie auf der Karte: weiße Schraffur auf Blau mit gestricheltem Rand (Anlage bekannt, Leistung unbekannt) */
+.swatchHatched {
+  border: 1px dashed var(--pf-blue);
+  background: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.85) 0 1.5px, var(--pf-blue) 1.5px 4px);
 }
 
 .dot {

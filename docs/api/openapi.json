@@ -308,10 +308,10 @@
                   "type": "null"
                 }
               ],
-              "description": "existing, potential (Standard: beide)",
+              "description": "existing, potential, none (Standard: alle)",
               "title": "Solar Status"
             },
-            "description": "existing, potential (Standard: beide)"
+            "description": "existing, potential, none (Standard: alle)"
           }
         ],
         "responses": {
@@ -891,11 +891,17 @@
                 },
                 {
                   "type": "integer"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
                 }
               ],
               "type": "array",
-              "maxItems": 3,
-              "minItems": 3
+              "maxItems": 5,
+              "minItems": 5
             },
             "type": "array",
             "title": "Points"
@@ -907,7 +913,139 @@
           "points"
         ],
         "title": "BuildingPoints",
-        "description": "Kompakte Übersicht aller Gebäude: [[lon, lat, status], …] (1 = Anlage, 2 = Potenzial)."
+        "description": "Kompakte Übersicht aller Gebäude: [[lon, lat, status, eignungsklasse, potenzial_kwp], …]\n(status 1 = Anlage, 2 = Potenzial, 0 = kein nennenswertes Potenzial; Eignungsklasse und\ninstallierbare Leistung laut LUBW)."
+      },
+      "BuildingProfile": {
+        "properties": {
+          "roof_area_m2": {
+            "type": "number",
+            "title": "Roof Area M2"
+          },
+          "pv_area_m2": {
+            "type": "number",
+            "title": "Pv Area M2"
+          },
+          "installed_known": {
+            "type": "boolean",
+            "title": "Installed Known"
+          },
+          "utilization_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Utilization Pct"
+          },
+          "open_kwp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open Kwp"
+          },
+          "price_eur_per_kwp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Eur Per Kwp"
+          },
+          "price_outside_table": {
+            "type": "boolean",
+            "title": "Price Outside Table",
+            "default": false
+          },
+          "investment_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Investment Eur"
+          },
+          "operating_cost_eur_per_year": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operating Cost Eur Per Year"
+          },
+          "energy_kwh_per_year": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Kwh Per Year"
+          },
+          "co2_savings_kg_per_year": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Co2 Savings Kg Per Year"
+          },
+          "amortization_years": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amortization Years"
+          },
+          "electricity_price_ct_per_kwh": {
+            "type": "number",
+            "title": "Electricity Price Ct Per Kwh"
+          },
+          "electricity_price_is_example": {
+            "type": "boolean",
+            "title": "Electricity Price Is Example",
+            "default": false
+          },
+          "operating_cost_pct": {
+            "type": "number",
+            "title": "Operating Cost Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "roof_area_m2",
+          "pv_area_m2",
+          "installed_known",
+          "electricity_price_ct_per_kwh",
+          "operating_cost_pct"
+        ],
+        "title": "BuildingProfile",
+        "description": "Steckbrief für den Hover auf der Karte (Formeln: data_service.building_profile)."
       },
       "BuildingProps": {
         "properties": {
@@ -1024,6 +1162,16 @@
               }
             ],
             "title": "Postal Code"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BuildingProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

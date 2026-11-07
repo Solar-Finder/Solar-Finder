@@ -7,7 +7,11 @@ Aus Daten:
 - Potenzial, Ertrag, CO₂, Eignungsklasse, Dachform: LUBW-Dachseiten (Klassen 1–3)
 - PLZ-Grenzen, Gebäudekategorie, zusätzliche Dachanlagen: OpenStreetMap
 
-Beispielwerte (keine Quelle im Projekt): Investition, Betriebskosten, Strompreis, Stromverbrauch.
+- Strompreis: Day-Ahead-Börsenstrompreis (SMARD über InfraNode), Tageswert
+- Anschaffungskosten je Gebäude: Preistabelle in data/ (Stand 2025)
+
+Vorgaben: laufende Kosten 1 % der Anschaffungskosten pro Jahr.
+Beispielwerte (keine Quelle im Projekt): Investition €/kWp im Rechner, Stromverbrauch der Stadt.
 """
 from __future__ import annotations
 
@@ -16,7 +20,12 @@ from typing import Iterable, Optional
 
 from shapely.geometry import Point, box
 
-from .geo_model import get_model, is_roof_unit
+from .geo_model import Building, get_model, is_roof_unit
+import logging
+
+from .sources import costs, power_price
+
+log = logging.getLogger(__name__)
 from .schemas import (
     DataStatus,
     ForecastAssumptions,
@@ -27,9 +36,21 @@ from .schemas import (
 
 # ---- Beispielwerte (müssen noch belegt werden) ----
 INVESTMENT_EUR_PER_KWP = 900.0
-OPERATING_COST_PCT = 1.5
 CONSUMPTION_GWH_PER_YEAR = 300.0
-ELECTRICITY_PRICE_CT = 18.0
+ELECTRICITY_PRICE_FALLBACK_CT = 18.0  # nur falls der Strompreis noch nie abgerufen werden konnte
+OPERATING_COST_PCT = costs.OPERATING_COST_PCT  # laufende Kosten: 1 % der Anschaffung pro Jahr (Vorgabe)
+
+
+def electricity_price() -> dict:
+    """Aktueller Strompreis (SMARD Day-Ahead, Tageswert); ohne Abruf/Cache: gekennzeichneter Beispielwert."""
+    try:
+        p = power_price.load()
+    except Exception:  # noqa: BLE001 – Netzwerkfehler sollen den Betrieb nicht stoppen
+        log.exception("Strompreis nicht abrufbar – verwende Beispielwert")
+        return {"value_ct_per_kwh": ELECTRICITY_PRICE_FALLBACK_CT, "source": "Beispielwert", "is_example": True,
+                "series_date": None}
+    return {"value_ct_per_kwh": p["ct_per_kwh"], "is_example": False, "series_date": p.get("series_date"),
+            "source": f"Day-Ahead-Börsenpreis {p.get('series_date') or ''}, {p['attribution']}".replace(" ,", ",")}
 
 MAX_BUILDINGS = 8000
 
@@ -100,6 +121,11 @@ def meta():
          "note": f"{m.lubw['origin']}; {m.lubw['totals']['roof_faces']} Dachseiten, "
                  f"{m.lubw['totals']['buildings']} Gebäude"},
     ]
+    price = electricity_price()
+    if not price["is_example"]:
+        sources.append({"name": "Strompreis: SMARD Day-Ahead (über InfraNode)",
+                        "url": power_price.URL, "retrieved_at": _iso(price["series_date"]),
+                        "note": "Bundesnetzagentur | SMARD.de, CC BY 4.0; Großhandelspreis DE/LU, Tageswert"})
     if m.osm_available:
         sources.append({"name": "OpenStreetMap (PLZ-Grenzen, Gebäudeart)", "url": "https://www.openstreetmap.org/copyright",
                         "retrieved_at": _iso(m.retrieved["osm_buildings"]), "note": "© OpenStreetMap-Mitwirkende, ODbL"})
@@ -115,9 +141,9 @@ def meta():
         "sliders": {
             "target_utilization_pct": {"min": current, "max": 100, "step": 1, "default": max(current, 30)},
             "horizon_years": {"min": 5, "max": 30, "step": 1, "default": 20},
-            "electricity_price_ct_per_kwh": {"min": 10, "max": 50, "step": 1, "default": ELECTRICITY_PRICE_CT},
+            "electricity_price_ct_per_kwh": {"min": 10, "max": 50, "step": 1, "default": price["value_ct_per_kwh"]},
         },
-        "electricity_price": {"value_ct_per_kwh": ELECTRICITY_PRICE_CT, "source": "Beispielwert", "is_example": True},
+        "electricity_price": {k: price[k] for k in ("value_ct_per_kwh", "source", "is_example")},
         "sources": sources,
         "data_as_of": _iso(m.retrieved["mastr"]),
     }
@@ -194,8 +220,68 @@ def _filtered_buildings(postal_code=None, category=None, bbox=None, suitability=
         yield b
 
 
+def building_profile(b: Building, price_ct: float, price_is_example: bool = False) -> dict:
+    """Steckbrief eines Gebäudes: Bestand, offenes Potenzial und Wirtschaftlichkeit des Ausbaus.
+
+    - Offenes Potenzial = LUBW-Potenzial − installierte Leistung (MaStR), mindestens 0.
+      Ohne Anlage ist das das gesamte Potenzial.
+    - Anschaffungskosten = offene kWp × Preis je kWp der Größenstufe (costs.py, Tabelle in data/).
+    - Laufende Kosten = 1 % der Anschaffungskosten pro Jahr.
+    - Ertrag/CO₂ des Ausbaus = offene kWp × spezifischer Ertrag bzw. CO₂ je kWp dieses Gebäudes (LUBW).
+    - Amortisation = Anschaffungskosten ÷ (Ertrag × Strompreis − laufende Kosten); Strompreis = SMARD Day-Ahead.
+    Ist die Anlage größer als das LUBW-Potenzial, gilt das Dach als zu 100 % ausgeschöpft.
+    Hat ein Gebäude nur eine in OSM erfasste Anlage (Leistung unbekannt), wird kein Ausbau gerechnet.
+    """
+    known = bool(b.mastr_ids)
+    unknown_installed = b.has_solar and not known
+    p = {
+        "roof_area_m2": b.roof_area_m2,
+        "pv_area_m2": b.pv_area_m2,
+        "installed_known": not unknown_installed,
+        "utilization_pct": None,
+        "open_kwp": None,
+        "price_eur_per_kwp": None,
+        "price_outside_table": False,
+        "investment_eur": None,
+        "operating_cost_eur_per_year": None,
+        "energy_kwh_per_year": None,
+        "co2_savings_kg_per_year": None,
+        "amortization_years": None,
+        "electricity_price_ct_per_kwh": price_ct,
+        "electricity_price_is_example": price_is_example,
+        "operating_cost_pct": costs.OPERATING_COST_PCT,
+    }
+    if b.has_solar and known:
+        # Anlage auf einem Dach ohne LUBW-Potenzial bzw. größer als das Potenzial → ausgeschöpft
+        p["utilization_pct"] = (100.0 if b.potential_kwp <= 0
+                                else min(round(b.installed_kwp / b.potential_kwp * 100, 1), 100.0))
+    if unknown_installed:
+        return p
+
+    open_kwp = max(b.potential_kwp - (b.installed_kwp if known else 0.0), 0.0)
+    p["open_kwp"] = round(open_kwp, 1)
+    if open_kwp <= 0:
+        return p
+    price, outside = costs.price_per_kwp(open_kwp)
+    invest = open_kwp * price
+    opex = invest * costs.OPERATING_COST_PCT / 100
+    energy = open_kwp * b.potential_kwh_per_year / b.potential_kwp
+    net = energy * price_ct / 100 - opex
+    p.update({
+        "price_eur_per_kwp": price,
+        "price_outside_table": outside,
+        "investment_eur": round(invest),
+        "operating_cost_eur_per_year": round(opex),
+        "energy_kwh_per_year": round(energy),
+        "co2_savings_kg_per_year": round(open_kwp * b.co2_savings_kg_per_year / b.potential_kwp),
+        "amortization_years": round(invest / net, 1) if net > 0 else None,
+    })
+    return p
+
+
 def buildings(bbox=None, postal_code=None, category=None, solar_status=None, limit=MAX_BUILDINGS):
     feats, truncated = [], False
+    price = electricity_price()
     for b in _filtered_buildings(postal_code, category, _bbox(bbox)):
         if solar_status and b.solar_status not in solar_status:
             continue
@@ -215,6 +301,7 @@ def buildings(bbox=None, postal_code=None, category=None, solar_status=None, lim
                 "roof_faces": b.roof_faces, "suitable_roof_faces": b.suitable_roof_faces,
                 "suitability": b.suitability, "roof_type": b.roof_type,
                 "postal_code": b.postal_code,
+                "profile": building_profile(b, price["value_ct_per_kwh"], price["is_example"]),
             },
         })
     return {"type": "FeatureCollection", "features": feats, "truncated": truncated}
@@ -253,16 +340,18 @@ STATUS_CODE = {"existing": 1, "potential": 2, "none": 0}
 def building_points(postal_code=None, category=None, solar_status=None):
     """Kompakte Punktliste aller Gebäude für die Übersicht bei kleinem Maßstab.
 
-    Format: [[lon, lat, status], …] mit status 1 = Anlage vorhanden, 2 = ungenutztes Potenzial
-    (Gebäude ohne PV-geeignete Dachseite werden weggelassen).
+    Format: [[lon, lat, status, eignungsklasse, potenzial_kwp], …] mit status 1 = Anlage vorhanden,
+    2 = ungenutztes Potenzial, 0 = kein nennenswertes Potenzial; Eignungsklasse laut LUBW (beste
+    Dachseite), installierbare Leistung = Σ Power der Klassen 1–3 (LUBW). Das Frontend filtert
+    Gebäude ohne Anlage nach der Klasse und färbt sie nach der installierbaren Leistung.
     """
-    wanted = set(solar_status or ["existing", "potential"])
+    wanted = set(solar_status or ["existing", "potential", "none"])
     pts = [
-        [b.center[0], b.center[1], STATUS_CODE[b.solar_status]]
+        [b.center[0], b.center[1], STATUS_CODE[b.solar_status], b.suitability, round(b.potential_kwp, 1)]
         for b in _filtered_buildings(postal_code, category)
         if b.solar_status in wanted
     ]
-    return {"status_codes": {"1": "existing", "2": "potential"}, "points": pts}
+    return {"status_codes": {"1": "existing", "2": "potential", "0": "none"}, "points": pts}
 
 
 def _breakdown(rows: Iterable, key, labels: dict, status: DataStatus, note=None):

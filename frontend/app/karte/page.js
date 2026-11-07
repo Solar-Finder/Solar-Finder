@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Donut from "@/components/Donut";
+import InfoTip from "@/components/InfoTip";
 import { getBuildingPoints, getBuildings, getInstallations, getMeta, getPostalAreas, getStats, getStatus } from "@/lib/api/client";
 import {
   BUILDINGS_MIN_ZOOM,
   INSTALLED_CLASSES,
   SOLAR_STATUS,
+  POTENTIAL_KWP_CLASSES,
   SUITABILITY_COLORS,
   UTILIZATION_CLASSES,
 } from "@/lib/mapConfig";
@@ -169,6 +171,7 @@ export default function KartePage() {
     () => ({
       categories: Object.fromEntries((meta?.categories ?? []).map((o) => [o.value, o.label])),
       roofTypes: Object.fromEntries((meta?.roof_types ?? []).map((o) => [o.value, o.label])),
+      suitability: Object.fromEntries((meta?.suitability_classes ?? []).map((o) => [o.value, o.label])),
     }),
     [meta]
   );
@@ -232,6 +235,7 @@ export default function KartePage() {
             installations={filters.view === "buildings" ? installations : null}
             selectedPostalCode={filters.postal_code}
             labels={labels}
+            suitability={suitabilityReady ? filters.suitability : null}
             onViewChange={setViewport}
           />
 
@@ -254,7 +258,11 @@ export default function KartePage() {
             </div>
           )}
 
-          <Legend filters={filters} potentialEstimated={potentialEstimated} unlocated={unlocated} />
+          <Legend
+            filters={filters}
+            potentialEstimated={potentialEstimated}
+            unlocated={unlocated}
+          />
         </div>
       </div>
 
@@ -329,6 +337,13 @@ function FilterPanel({ meta, filters, set, toggleSuitability, suitabilityReady, 
 
       <SelectField
         label="PV-Ansicht"
+        info={
+          <>
+            Potenzial: genutzter Anteil des Dachpotenzials je Gebiet bzw. Dächer ohne Anlage nach installierbarer
+            Leistung (LUBW). Bestand: installierte Leistung je Gebiet bzw. nur Gebäude mit bekannter Anlage
+            (Marktstammdatenregister, OpenStreetMap).
+          </>
+        }
         value={filters.pv_view}
         onChange={(v) => set("pv_view", v)}
         options={meta?.pv_views ?? [{ value: "potential", label: "Potenzial" }]}
@@ -354,6 +369,11 @@ function FilterPanel({ meta, filters, set, toggleSuitability, suitabilityReady, 
       <fieldset className={s.group} disabled={!suitabilityReady}>
         <legend className={s.groupLabel}>
           Eignungsklassen{!suitabilityReady && <span className={s.pendingTag}> · folgt (LUBW)</span>}
+          <InfoTip label="Eignungsklassen">
+            Eignung der Dachflächen laut LUBW. Klassen 1–3 sind PV-geeignet und zählen zum Potenzial; 6: keine
+            PV-Fläche, 8: nicht berechnet, 0: Dachtyp unbekannt. Auf der Karte werden nur Dächer ohne Anlage
+            ausgeblendet – Dächer mit Anlage bleiben immer sichtbar.
+          </InfoTip>
         </legend>
         <div className={s.chips}>
           {(meta?.suitability_classes ?? []).map((o) => {
@@ -391,10 +411,13 @@ function RadioOption({ name, value, checked, onChange, children }) {
   );
 }
 
-function SelectField({ label, value, onChange, options, active }) {
+function SelectField({ label, info, value, onChange, options, active }) {
   return (
     <label className={s.group}>
-      <span className={s.groupLabel}>{label}</span>
+      <span className={s.groupLabel}>
+        {label}
+        {info && <InfoTip label={label}>{info}</InfoTip>}
+      </span>
       <span className={`${s.select} ${active ? s.selectActive : ""}`}>
         <select value={value} onChange={(e) => onChange(e.target.value)}>
           {options.map((o) => (
@@ -411,6 +434,8 @@ function SelectField({ label, value, onChange, options, active }) {
 
 /* ---------------- Legende ---------------- */
 function Legend({ filters, potentialEstimated, unlocated }) {
+  let heatItems = null;
+  const [open, setOpen] = useState(true);
   let title, items, note;
   if (filters.view === "postal") {
     const existing = filters.pv_view === "existing";
@@ -424,11 +449,14 @@ function Legend({ filters, potentialEstimated, unlocated }) {
       : `Installierte Leistung ÷ ${potentialEstimated ? "geschätztes " : ""}Dachpotenzial im Gebiet × 100`;
   } else {
     title = "Gebäude";
-    const keys = filters.pv_view === "existing" ? ["existing"] : ["existing", "potential", "none"];
-    items = [
-      ...keys.map((k) => ({ label: SOLAR_STATUS[k].label, swatch: <i className={s.swatch} style={{ background: SOLAR_STATUS[k].hex }} /> })),
-      { label: "Großanlage > 30 kW (MaStR-Standort)", swatch: <i className={s.dot} /> },
-    ];
+    const swatch = (hex) => <i className={s.swatch} style={{ background: hex }} />;
+    const existing = { label: SOLAR_STATUS.existing.label, swatch: swatch(SOLAR_STATUS.existing.hex) };
+    const unknown = { label: "Solaranlage vorhanden, Leistung unbekannt", swatch: <i className={`${s.swatch} ${s.swatchHatched}`} /> };
+    items = [existing, unknown, { label: "Großanlage > 30 kW (MaStR-Standort)", swatch: <i className={s.dot} /> }];
+    // Dächer ohne Anlage: Heatmap nach installierbarer Leistung (LUBW)
+    if (filters.pv_view !== "existing") {
+      heatItems = POTENTIAL_KWP_CLASSES.map((c) => ({ label: c.label, swatch: swatch(c.hex) }));
+    }
     note =
       `Kleinanlagen bis 30 kW sind im Marktstammdatenregister nur der PLZ zugeordnet` +
       (unlocated != null ? ` (${fmtInt(unlocated)} Anlagen)` : "") +
@@ -436,24 +464,59 @@ function Legend({ filters, potentialEstimated, unlocated }) {
   }
 
   return (
-    <div className={s.legend}>
+    <div className={`${s.legend} ${open ? "" : s.legendCollapsed}`}>
       <div className={s.legendHead}>
         <strong>Legende</strong>
         {potentialEstimated && <span>Potenzial geschätzt</span>}
+        {/* Klappt den Inhalt nach unten weg; die Kopfzeile bleibt am unteren Kartenrand stehen */}
+        <button
+          type="button"
+          className={s.legendToggle}
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-controls="legende-inhalt"
+          title={open ? "Legende einklappen" : "Legende ausklappen"}
+        >
+          <img
+            src="/icons/chevron-down.svg"
+            width={16}
+            height={16}
+            alt=""
+            className={open ? "" : s.legendChevronUp}
+          />
+          <span className={s.srOnly}>Legende {open ? "einklappen" : "ausklappen"}</span>
+        </button>
       </div>
-      <hr />
-      <p className={s.legendSection}>{title}</p>
-      <ul>
-        {items.map((it) => (
-          <li key={it.label}>
-            {it.swatch}
-            {it.label}
-          </li>
-        ))}
-      </ul>
-      <hr />
-      <p className={s.legendNote}>{note}</p>
+      {/* Bleibt eingeklappt im DOM (inert), damit die Höhe animiert werden kann */}
+      <div id="legende-inhalt" className={s.legendBody} aria-hidden={!open} inert={!open}>
+        <div className={s.legendBodyInner}>
+          <hr />
+          <p className={s.legendSection}>{title}</p>
+          <LegendList items={items} />
+          {heatItems && (
+            <>
+              <p className={s.legendSection}>Dächer ohne Anlage · installierbare Leistung</p>
+              <LegendList items={heatItems} />
+            </>
+          )}
+          <hr />
+          <p className={s.legendNote}>{note}</p>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function LegendList({ items }) {
+  return (
+    <ul>
+      {items.map((it) => (
+        <li key={it.label}>
+          {it.swatch}
+          {it.label}
+        </li>
+      ))}
+    </ul>
   );
 }
 

@@ -1,0 +1,50 @@
+/* „i“ im Kreis – dezent, damit die Überschriften im Vordergrund bleiben */
+.icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 6px;
+  padding: 0;
+  border: 1px solid var(--text-subtle);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-subtle);
+  font-family: var(--font);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+  cursor: help;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.icon:hover,
+.icon:focus-visible {
+  border-color: var(--pf-blue);
+  background: var(--pf-blue-50);
+  color: var(--pf-blue);
+}
+
+.icon:focus-visible {
+  outline: 2px solid var(--pf-blue);
+  outline-offset: 2px;
+}
+
+.tip {
+  position: fixed;
+  z-index: 2000; /* über Leaflet-Ebenen (bis 1000) und dem Griff der Kartenansicht (1001) */
+  width: 240px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(17, 24, 39, 0.12);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.45;
+  pointer-events: none;
+}

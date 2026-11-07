@@ -246,8 +246,10 @@
 }
 
 .donutValue {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .donutSub {
@@ -314,13 +316,11 @@
   margin-top: 4px;
 }
 
-/* Balkenbreite entspricht dem Anteil; Beschriftung bleibt zentriert */
+/* Bestand und Zubau gleich breit; die Werte stehen in der Beschriftung */
 .growthBar::before {
   content: "";
   position: absolute;
-  inset: 0 auto 0 50%;
-  width: max(var(--w), 8%);
-  transform: translateX(-50%);
+  inset: 0;
   border-radius: 6px;
   background: var(--border-strong);
 }
@@ -372,4 +372,27 @@
   .sideCharts {
     grid-template-columns: 1fr;
   }
+}
+
+/* ---------- Info-Texte der Prognosen (im InfoTip) ---------- */
+.infoFormula {
+  display: block;
+  margin-bottom: 6px;
+  padding: 5px 7px;
+  border-radius: 4px;
+  background: var(--pf-blue-50);
+  color: var(--pf-blue-700);
+  font-weight: 600;
+}
+
+.infoLine {
+  display: block;
+  color: var(--text-muted);
+}
+
+.infoMeaning {
+  display: block;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
 }

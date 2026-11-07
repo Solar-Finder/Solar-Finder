@@ -146,6 +146,25 @@ class InstallationCollection(BaseModel):
     unlocated_count: int = 0  # Anlagen im Filterbereich ohne öffentliche Koordinaten
 
 
+class BuildingProfile(BaseModel):
+    """Steckbrief beim Klick auf ein Gebäude in der Karte (Formeln: data_service.building_profile)."""
+    roof_area_m2: float                     # LUBW Σ Area3D (geneigte Dachfläche)
+    pv_area_m2: float                       # LUBW Σ PvArea, Klassen 1–3
+    installed_known: bool                   # False: Anlage nur in OSM erfasst, Leistung unbekannt
+    utilization_pct: Optional[float] = None # installiert ÷ Potenzial × 100, höchstens 100 (nur mit Anlage)
+    open_kwp: Optional[float] = None        # Potenzial − installiert, ≥ 0
+    price_eur_per_kwp: Optional[float] = None
+    price_outside_table: bool = False       # Ausbau größer als die Preistabelle (letzter Preis verwendet)
+    investment_eur: Optional[float] = None
+    operating_cost_eur_per_year: Optional[float] = None
+    energy_kwh_per_year: Optional[float] = None
+    co2_savings_kg_per_year: Optional[float] = None
+    amortization_years: Optional[float] = None  # None: Erträge decken die laufenden Kosten nicht
+    electricity_price_ct_per_kwh: float     # SMARD Day-Ahead (Tageswert), sonst Beispielwert
+    electricity_price_is_example: bool = False
+    operating_cost_pct: float               # % der Anschaffungskosten pro Jahr
+
+
 class BuildingProps(BaseModel):
     category: BuildingCategory          # aus OSM; ohne OSM-Treffer "other"
     building_type: Optional[str] = None # OSM building=*
@@ -164,6 +183,7 @@ class BuildingProps(BaseModel):
     suitability: Optional[SuitabilityClass] = None  # beste Klasse des Gebäudes
     roof_type: Optional[RoofType] = None
     postal_code: Optional[str] = None
+    profile: Optional[BuildingProfile] = None
 
 
 class BuildingFeature(BaseModel):
@@ -180,9 +200,11 @@ class BuildingCollection(BaseModel):
 
 
 class BuildingPoints(BaseModel):
-    """Kompakte Übersicht aller Gebäude: [[lon, lat, status], …] (1 = Anlage, 2 = Potenzial)."""
+    """Kompakte Übersicht aller Gebäude: [[lon, lat, status, eignungsklasse, potenzial_kwp], …]
+    (status 1 = Anlage, 2 = Potenzial, 0 = kein nennenswertes Potenzial; Eignungsklasse und
+    installierbare Leistung laut LUBW)."""
     status_codes: dict[str, SolarStatus]
-    points: list[tuple[float, float, int]]
+    points: list[tuple[float, float, int, int, float]]
 
 
 class PostalAreaProps(BaseModel):

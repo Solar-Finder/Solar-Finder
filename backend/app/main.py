@@ -110,7 +110,7 @@ def get_buildings(
 def get_building_points(
     postal_code: Optional[str] = None,
     category: Optional[list[BuildingCategory]] = CategoryQ,
-    solar_status: Optional[list[SolarStatus]] = Query(None, description="existing, potential (Standard: beide)"),
+    solar_status: Optional[list[SolarStatus]] = Query(None, description="existing, potential, none (Standard: alle)"),
 ):
     """Alle Gebäude als Punkte – für die Übersicht bei kleinem Maßstab (ohne Grundrisse)."""
     return ds.building_points(postal_code, category, solar_status)

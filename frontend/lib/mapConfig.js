@@ -47,5 +47,21 @@ export const SOLAR_STATUS = {
   none: { label: "Nebengebäude / kein nennenswertes Potenzial", hex: "#d1d5db" },
 };
 
-/** Farben der Eignungsklassen (sobald LUBW-Daten vorliegen) */
+/**
+ * Heatmap für Dächer OHNE Anlage: installierbare Leistung laut LUBW (Σ Power der Klassen 1–3)
+ * → Stufen eines Gelbtons, mehr Leistung = kräftigere Farbe. Grenzen nach der Verteilung in
+ * Pforzheim (Median ≈ 11 kWp, 90 % ≤ 32 kWp); 30 kWp = Grenze für öffentliche MaStR-Standorte.
+ * Dächer mit Anlage bleiben unabhängig davon blau (SOLAR_STATUS.existing).
+ */
+export const POTENTIAL_KWP_CLASSES = [
+  { max: 0, label: "0 kWp · keine PV-geeignete Fläche", hex: "#fbf5d8" },
+  { max: 5, label: "bis 5 kWp", hex: "#f8e9a1" },
+  { max: 10, label: ">5–10 kWp", hex: "#f3d961" },
+  { max: 20, label: ">10–20 kWp", hex: "#ebc22a" },
+  { max: 30, label: ">20–30 kWp", hex: "#d9a20c" },
+  { max: Infinity, label: ">30 kWp", hex: "#b07a00" },
+];
+export const potentialColor = (kwp) => classFor(POTENTIAL_KWP_CLASSES, kwp ?? 0).hex;
+
+/** Farben der Eignungsklassen im Diagramm (auf der Karte wird nur nach Klasse gefiltert) */
 export const SUITABILITY_COLORS = { 1: "#1e5078", 2: "#f0d23c", 3: "#c83737", 6: "#94a3b8" };

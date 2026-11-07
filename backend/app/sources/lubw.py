@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 DATA_DIR = Path(__file__).resolve().parents[3] / "data" / "8231_Solarpotenzial_Dachseiten_Pforzheim_Stadt"
 FILENAME = "8231_Solarpotenzial_Dachseiten_Pforzheim_Stadt.shp"
 
-COLUMNS = ["BuildingID", "Eignung", "RoofType", "Power", "Yield", "CO2Savings", "JAHR", "HERKUNFT"]
+COLUMNS = ["BuildingID", "Eignung", "RoofType", "Power", "Yield", "CO2Savings", "Area3D", "PvArea", "JAHR", "HERKUNFT"]
 
 # Klassen mit PV-Belegungsfläche (PvArea > 0, Yield > 0, CO2Savings > 0 im Datensatz).
 # Klasse 6: keine Belegungsfläche – Power/Yield sind dort aus PvAreaT gerechnet und zählen NICHT.
@@ -69,7 +69,7 @@ def load() -> dict:
     faces["geometry"] = faces.geometry.make_valid().buffer(0)
 
     suitable = faces["Eignung"].isin(SUITABLE_CLASSES)
-    for col in ("Power", "Yield", "CO2Savings"):
+    for col in ("Power", "Yield", "CO2Savings", "PvArea"):
         faces[f"s_{col}"] = faces[col].where(suitable, 0.0)
     faces["s_face"] = suitable.astype(int)
 
@@ -78,6 +78,9 @@ def load() -> dict:
         "potential_kwp": grouped["s_Power"].sum(),
         "potential_kwh_per_year": grouped["s_Yield"].sum(),
         "co2_savings_kg_per_year": grouped["s_CO2Savings"].sum(),
+        # Area3D = Area ÷ cos(Slope) für alle Dachseiten → tatsächliche (geneigte) Dachfläche
+        "roof_area_m2": grouped["Area3D"].sum(),
+        "pv_area_m2": grouped["s_PvArea"].sum(),           # PV-Belegungsfläche, Klassen 1–3
         "roof_faces": grouped.size(),
         "suitable_roof_faces": grouped["s_face"].sum(),
         "suitability": grouped["Eignung"].agg(_best_class),
@@ -99,6 +102,8 @@ def load() -> dict:
             "potential_kwp": float(row.potential_kwp),
             "potential_kwh_per_year": float(row.potential_kwh_per_year),
             "co2_savings_kg_per_year": float(row.co2_savings_kg_per_year),
+            "roof_area_m2": round(float(row.roof_area_m2), 1),
+            "pv_area_m2": round(float(row.pv_area_m2), 1),
             "roof_faces": int(row.roof_faces),
             "suitable_roof_faces": int(row.suitable_roof_faces),
             "suitability": int(row.suitability),

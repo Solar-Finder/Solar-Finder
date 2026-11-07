@@ -6,14 +6,12 @@ import { useMap } from "react-leaflet";
 
 /**
  * Schnelle Punktebene für zehntausende Gebäude (ein Canvas, kein Leaflet-Layer je Punkt).
- * points: [[lon, lat, statusCode], …]; colors: { [statusCode]: "#hex" }
- * Punkte mit höherem `order` werden zuletzt (oben) gezeichnet.
+ * groups: [{ color: "#hex", scale: 1, points: [[lon, lat], …] }, …] – in dieser Reihenfolge
+ * gezeichnet, spätere Gruppen liegen oben. `scale` vergrößert den Punktradius der Gruppe.
  */
 const CanvasDots = L.Layer.extend({
-  initialize(points, colors, order, pane) {
-    this._points = points;
-    this._colors = colors;
-    this._order = order;
+  initialize(groups, pane) {
+    this._groups = groups;
     this.options.pane = pane;
   },
 
@@ -59,13 +57,12 @@ const CanvasDots = L.Layer.extend({
     const r = z >= 14 ? 3 : z >= 13 ? 2.4 : z >= 12 ? 1.8 : 1.3;
     const bounds = map.getBounds().pad(0.05);
 
-    for (const code of this._order) {
-      ctx.fillStyle = this._colors[code];
-      // Bestand größer, damit er zwischen den Potenzial-Punkten auffällt
-      const rr = code === this._order[this._order.length - 1] ? r * 1.35 : r;
+    for (const g of this._groups) {
+      ctx.fillStyle = g.color;
+      const rr = r * (g.scale ?? 1);
       ctx.beginPath();
-      for (const [lon, lat, c] of this._points) {
-        if (c !== code || !bounds.contains([lat, lon])) continue;
+      for (const [lon, lat] of g.points) {
+        if (!bounds.contains([lat, lon])) continue;
         const p = map.latLngToContainerPoint([lat, lon]);
         ctx.moveTo(p.x + rr, p.y);
         ctx.arc(p.x, p.y, rr, 0, Math.PI * 2);
@@ -75,13 +72,13 @@ const CanvasDots = L.Layer.extend({
   },
 });
 
-export default function DotLayer({ points, colors, order, pane = "overlayPane" }) {
+export default function DotLayer({ groups, pane = "overlayPane" }) {
   const map = useMap();
   useEffect(() => {
-    if (!points?.length) return;
-    const layer = new CanvasDots(points, colors, order, pane);
+    if (!groups?.some((g) => g.points.length)) return;
+    const layer = new CanvasDots(groups, pane);
     layer.addTo(map);
     return () => layer.remove();
-  }, [map, points, colors, order, pane]);
+  }, [map, groups, pane]);
   return null;
 }

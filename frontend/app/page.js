@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import RangeSlider from "@/components/RangeSlider";
 import BalanceChart from "@/components/BalanceChart";
 import Donut from "@/components/Donut";
+import InfoTip from "@/components/InfoTip";
 import { getMeta, getStatus, postForecast } from "@/lib/api/client";
 import { fmtFlex, fmtInt, fmtMio, fmtMwp, fmtPct } from "@/lib/format";
 import s from "./rechner.module.css";
@@ -58,7 +59,7 @@ export default function RechnerPage() {
 
       <div className={s.inputsResults}>
         <Configuration meta={meta} config={config} forecast={forecast} set={set} onReset={() => setConfig(defaultConfig(meta))} />
-        <Forecasts forecast={forecast} years={config?.horizon_years} />
+        <Forecasts forecast={forecast} years={config?.horizon_years} price={config?.electricity_price_ct_per_kwh} />
       </div>
 
       <Development forecast={forecast} config={config} isExample={isExample} />
@@ -173,8 +174,9 @@ function Configuration({ meta, config, forecast, set, onReset }) {
 const pick = ({ min, max, step }) => ({ min, max, step });
 
 /* ---------------- Prognosen ---------------- */
-function Forecasts({ forecast: f, years: horizon }) {
+function Forecasts({ forecast: f, years: horizon, price }) {
   const years = horizon ?? "–";
+  const info = forecastInfo(f, horizon, price);
   return (
     <section className={`card ${s.forecast}`} aria-labelledby="forecast-title" aria-live="polite">
       <div className="section-head">
@@ -183,18 +185,18 @@ function Forecasts({ forecast: f, years: horizon }) {
       </div>
 
       <div className={s.kpiGrid}>
-        <Kpi icon="wallet" title="Erforderliche Investition" value={f && fmtMio(f.investment_eur)}
+        <Kpi icon="wallet" title="Erforderliche Investition" value={f && fmtMio(f.investment_eur)} info={info.investment}
           note={f && `Einmalig zum Start · ${fmtMwp(f.new_power_mwp)} zusätzlicher Ausbau`} />
-        <Kpi icon="trending-up" highlight title={`Gewinn nach ${years} Jahren`} value={f && fmtMio(f.profit_eur)}
+        <Kpi icon="trending-up" highlight title={`Gewinn nach ${years} Jahren`} value={f && fmtMio(f.profit_eur)} info={info.profit}
           note="Nach Investition und Betriebskosten des zusätzlichen Ausbaus" />
-        <Kpi icon="zap" title="Gesamte Stromerzeugung" value={f && `${fmtInt(f.energy_total_mwh)} MWh`}
+        <Kpi icon="zap" title="Gesamte Stromerzeugung" value={f && `${fmtInt(f.energy_total_mwh)} MWh`} info={info.energyTotal}
           note={`Gesamtenergie über ${years} Jahre`} />
-        <Kpi icon="zap" title="Stromerzeugung pro Jahr" value={f && `${fmtInt(f.energy_per_year_mwh)} MWh/Jahr`}
+        <Kpi icon="zap" title="Stromerzeugung pro Jahr" value={f && `${fmtInt(f.energy_per_year_mwh)} MWh/Jahr`} info={info.energyYear}
           note="Durchschnittliche Jahresproduktion" />
-        <Kpi icon="timer" title="Amortisationsdauer"
+        <Kpi icon="timer" title="Amortisationsdauer" info={info.amortization}
           value={f && (f.amortization_years == null ? "nicht erreicht" : `${fmtFlex(f.amortization_years, 1)} Jahre`)}
           note={f && f.amortization_years == null ? "Erträge decken die Betriebskosten nicht" : "Ab dann ist die Investition gedeckt"} />
-        <Kpi icon="leaf" title={`CO₂-Einsparung in ${years} Jahren`} value={f && `${fmtInt(f.co2_savings_t_total)} t`}
+        <Kpi icon="leaf" title={`CO₂-Einsparung in ${years} Jahren`} value={f && `${fmtInt(f.co2_savings_t_total)} t`} info={info.co2}
           note={f && `${fmtInt(f.co2_savings_t_per_year)} t pro Jahr · modellhaft`} />
       </div>
 
@@ -211,11 +213,94 @@ function Forecasts({ forecast: f, years: horizon }) {
   );
 }
 
-function Kpi({ icon, title, value, note, highlight }) {
+/**
+ * Info-Texte der Prognosen: Formel (wie in backend/app/data_service.py → forecast) mit den
+ * aktuellen Annahmen aus der API und eine kurze Einordnung. Beispielwerte sind gekennzeichnet.
+ */
+function forecastInfo(f, years, price) {
+  const a = f?.assumptions;
+  const ex = (key) => (a?.status?.[key] === "example" ? " (Beispielwert)" : "");
+  const n = years ?? "Jahre";
+  const zubau = <Assumption>Zubau = Zielauslastung × Dachpotenzial − Bestand (Gebäudesolaranlagen laut MaStR)</Assumption>;
+  return {
+    investment: (
+      <>
+        <Formula>Investition = Zubau × Investitionskosten je kWp</Formula>
+        <Assumption>
+          Investitionskosten: {a ? `${fmtInt(a.investment_eur_per_kwp)} €/kWp` : "–"}
+          {ex("investment_eur_per_kwp")}
+        </Assumption>
+        {zubau}
+        <Meaning>Einmaliger Kapitalbedarf zum Start – Grundlage für Gewinn und Amortisation.</Meaning>
+      </>
+    ),
+    profit: (
+      <>
+        <Formula>Gewinn = {n} × (Stromwert − Betriebskosten) − Investition</Formula>
+        <Assumption>
+          Stromwert = Stromerzeugung pro Jahr × Strompreis ({price != null ? `${fmtFlex(price, 1)} ct/kWh` : "–"})
+        </Assumption>
+        <Assumption>
+          Betriebskosten = {a ? `${fmtFlex(a.operating_cost_pct_of_investment, 1)} %` : "–"} der Investition pro Jahr
+          {ex("operating_cost_pct_of_investment")}
+        </Assumption>
+        <Meaning>
+          Zeigt, ob sich der Ausbau im Zeitraum wirtschaftlich lohnt. Vereinfacht: ohne Zinsen, Steuern, Förderung und
+          Alterung der Module.
+        </Meaning>
+      </>
+    ),
+    energyTotal: (
+      <>
+        <Formula>Gesamte Stromerzeugung = Stromerzeugung pro Jahr × {n}</Formula>
+        <Meaning>Gesamter Beitrag des Zubaus im Zeitraum; der Jahresertrag wird als gleichbleibend angenommen.</Meaning>
+      </>
+    ),
+    energyYear: (
+      <>
+        <Formula>Stromerzeugung pro Jahr = Zubau × spezifischer Ertrag</Formula>
+        <Assumption>
+          Spezifischer Ertrag: {a ? `${fmtInt(a.specific_yield_kwh_per_kwp)} kWh/kWp` : "–"} (LUBW, Mittel aller
+          PV-geeigneten Dachseiten)
+        </Assumption>
+        {zubau}
+        <Meaning>Basis für Stromwert und CO₂-Einsparung; Vergleichsgröße zum Jahresverbrauch der Stadt.</Meaning>
+      </>
+    ),
+    amortization: (
+      <>
+        <Formula>Amortisationsdauer = Investition ÷ (Stromwert − Betriebskosten) pro Jahr</Formula>
+        <Meaning>
+          Ab diesem Zeitpunkt ist die Investition zurückverdient. Liegt sie unter dem Betrachtungszeitraum, entsteht
+          Gewinn; je kürzer, desto geringer das finanzielle Risiko.
+        </Meaning>
+      </>
+    ),
+    co2: (
+      <>
+        <Formula>CO₂-Einsparung = Stromerzeugung pro Jahr × CO₂-Faktor × {n}</Formula>
+        <Assumption>
+          CO₂-Faktor: {a ? `${fmtFlex(a.co2_kg_per_kwh, 3)} kg/kWh` : "–"} (aus dem LUBW-Datensatz: CO₂-Einsparung ÷
+          Ertrag)
+        </Assumption>
+        <Meaning>Vermiedene Emissionen durch den Solarstrom – Maß für den Klimanutzen des Ausbaus.</Meaning>
+      </>
+    ),
+  };
+}
+
+const Formula = ({ children }) => <span className={s.infoFormula}>{children}</span>;
+const Assumption = ({ children }) => <span className={s.infoLine}>{children}</span>;
+const Meaning = ({ children }) => <span className={s.infoMeaning}>{children}</span>;
+
+function Kpi({ icon, title, value, note, highlight, info }) {
   return (
     <div className={`${s.kpi} ${highlight ? s.kpiHighlight : ""}`}>
       <div className={s.kpiHead}>
-        <span>{title}</span>
+        <span>
+          {title}
+          {info && <InfoTip label={title}>{info}</InfoTip>}
+        </span>
         <img src={`/icons/${icon}.svg`} width={15} height={15} alt="" />
       </div>
       <span className={s.kpiValue}>{value ?? "–"}</span>
@@ -228,7 +313,6 @@ function Kpi({ icon, title, value, note, highlight }) {
 function Development({ forecast: f, config, isExample }) {
   const solarGwh = f ? f.energy_per_year_mwh / 1000 : 0;
   const restGwh = f ? Math.max(f.consumption_gwh_per_year - solarGwh, 0) : 0;
-  const growthMax = f ? Math.max(f.existing_power_mwp, f.new_power_mwp, 0.001) : 1;
 
   return (
     <section className={`card ${s.development}`} aria-labelledby="dev-title">
@@ -262,7 +346,7 @@ function Development({ forecast: f, config, isExample }) {
             </div>
             <div className={s.consumption}>
               <Donut
-                size={84}
+                size={120}
                 thickness={14}
                 label="Anteil Solarstrom am Jahresverbrauch"
                 segments={[
@@ -295,10 +379,10 @@ function Development({ forecast: f, config, isExample }) {
             <div className={s.growth}>
               <span className={s.growthTarget}>{f ? fmtMwp(f.target_power_mwp) : "–"}</span>
               <span className="note">Zieldeckung {config ? fmtPct(config.target_utilization_pct) : "–"}</span>
-              <div className={s.growthBar} style={{ "--w": `${f ? (f.existing_power_mwp / growthMax) * 100 : 100}%` }}>
+              <div className={s.growthBar}>
                 <span>{f ? fmtMwp(f.existing_power_mwp) : "–"} bestehend</span>
               </div>
-              <div className={`${s.growthBar} ${s.growthBarNew}`} style={{ "--w": `${f ? (f.new_power_mwp / growthMax) * 100 : 100}%` }}>
+              <div className={`${s.growthBar} ${s.growthBarNew}`}>
                 <span>+{f ? fmtMwp(f.new_power_mwp) : "–"} Zubau</span>
               </div>
               <span className="note">{f ? fmtMwp(f.potential_power_mwp) : "–"} Gesamtpotenzial</span>

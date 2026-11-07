@@ -78,6 +78,8 @@ class Building:
     potential_kwp: float                 # Σ Power, Klassen 1–3 (LUBW)
     potential_kwh_per_year: float        # Σ Yield, Klassen 1–3 (LUBW)
     co2_savings_kg_per_year: float       # Σ CO2Savings, Klassen 1–3 (LUBW)
+    roof_area_m2: float                  # Σ Area3D aller Dachseiten (geneigte Dachfläche, LUBW)
+    pv_area_m2: float                    # Σ PvArea, Klassen 1–3 (PV-Belegungsfläche, LUBW)
     suitability: int                     # beste Klasse (1, 2, 3, 6, 8, 0)
     roof_type: str                       # flat / pitched / mixed / unknown
     roof_faces: int
@@ -170,6 +172,7 @@ def _build() -> Model:
             footprint_m2=r["footprint_m2"], potential_kwp=r["potential_kwp"],
             potential_kwh_per_year=r["potential_kwh_per_year"],
             co2_savings_kg_per_year=r["co2_savings_kg_per_year"], suitability=r["suitability"],
+            roof_area_m2=r["roof_area_m2"], pv_area_m2=r["pv_area_m2"],
             roof_type=r["roof_type"], roof_faces=r["roof_faces"], suitable_roof_faces=r["suitable_roof_faces"],
         )
         for r in roof_data["buildings"]

@@ -15,7 +15,10 @@ Dachpotenzials mehr aus der Gebäudegrundfläche.
 | **LUBW Solarpotenzial Dachseiten** (Herkunft: „LUBW, Geoplex GIS GmbH“, Jahr 2025, Höhendaten 2016–2023) | `data/8231_Solarpotenzial_Dachseiten_Pforzheim_Stadt/*.shp` (EPSG:25832, 77 645 Dachseiten, 37 522 Gebäude, Stadtkreis Pforzheim 08231) | Gebäude, Dachpotenzial (kWp), Jahresertrag (kWh), CO₂, Eignungsklasse, Dachform | verified |
 | **Marktstammdatenregister** | API, Cache 1 Tag | installierte Anlagen (Leistung, Typ, PLZ; Koordinaten nur > 30 kW) | verified |
 | **OpenStreetMap** | `data/osm/*.json` (im Git). Nach Ablauf (PLZ-Grenzen/Gebäude 30 Tage, Solaranlagen 7 Tage, gemessen am Feld `retrieved_at`) im Hintergrund über Overpass erneuert, danach wird das Modell neu aufgebaut. Ist Overpass nicht erreichbar (10-s-Verbindungstest), bleibt der vorhandene Stand; PLZ-Grenzen ersatzweise über Nominatim + OSM-API (`relation/{id}/full`) | nur, was LUBW nicht enthält: PLZ-Grenzen, Gebäudeart (Kategorie), Name, zusätzlich erfasste Dachanlagen | verified |
-| Wirtschaftlichkeit | Konstanten in `data_service.py` | Investition €/kWp, Betriebskosten, Strompreis, Stromverbrauch der Stadt | **example** – keine Quelle im Projekt |
+| **Strompreis** | [InfraNode-API](https://infranode.dev/api/v1/cities/pforzheim/power-price) → Bundesnetzagentur \| SMARD.de (CC BY 4.0), Cache 1 Tag (`data/cache/power_price.json`) | Day-Ahead-Großhandelspreis DE/LU als Tageswert (€/MWh ÷ 10 = ct/kWh); Startwert des Reglers im Rechner und Preis im Gebäude-Steckbrief. Kein Endkundenpreis. Ohne Abruf und Cache: Beispielwert 18 ct/kWh (gekennzeichnet) | verified |
+| **Anschaffungskosten je Gebäude** | `data/Tabelle_Anschaffungskosten_PVprokWp.md` (Nettopreise nach Größe, Stand 2025) | Gebäude-Steckbrief | Annahme laut Tabelle |
+| Wirtschaftlichkeit (Rechner) | Konstanten in `data_service.py` | Investition 900 €/kWp, Stromverbrauch der Stadt | **example** – keine Quelle im Projekt |
+| Laufende Kosten | Vorgabe | 1 % der Anschaffungskosten pro Jahr (Rechner und Steckbrief) | Vorgabe |
 
 **Quellenpriorität:** Was der LUBW-Datensatz enthält, kommt aus LUBW – Gebäudeumriss, Grundfläche,
 Dachform, Potenzial, Ertrag, CO₂, Eignung. OSM-Gebäude dienen nur dazu, einem LUBW-Gebäude Kategorie
@@ -34,11 +37,13 @@ Eine Zeile = eine **Dachseite** (`RoofID`) eines Gebäudes (`BuildingID`).
 | `Power` | PV-Leistung der Dachseite in kWp (für die von LUBW gewählte Belegung) | ✔ |
 | `Yield` | Jahresertrag in kWh/a der Dachseite (passend zu `Power`) | ✔ |
 | `CO2Savings` | CO₂-Einsparung in kg/a | ✔ |
+| `Area3D` | geneigte Dachfläche in m² (= `Area` ÷ cos(`Slope`), für alle Dachseiten nachgeprüft) | ✔ Steckbrief „Dachfläche“ |
+| `PvArea` | PV-Belegungsfläche in m² | ✔ Steckbrief „davon PV-geeignet“ (Klassen 1–3) |
 | geometry | Dachseiten-Polygon | ✔ Gebäudeumriss = Vereinigung der Dachseiten |
 
-Nicht verwendet (Varianten bzw. Zwischenwerte): `PvArea`, `PvAreaA`, `PvAreaT`, `ErtKwP_K(A)`,
-`ErtKwhaK(A)`, `PercentMs(A)`, `Schatten(A)`, `ModuleCoun`, `Irradiatio`, `Slope`, `Aspect`, `Area`,
-`Area3D`, `Eignung_T` (vermutlich Solarthermie, nicht dokumentiert), Verwaltungsspalten.
+Nicht verwendet (Varianten bzw. Zwischenwerte): `PvAreaA`, `PvAreaT`, `ErtKwP_K(A)`,
+`ErtKwhaK(A)`, `PercentMs(A)`, `Schatten(A)`, `ModuleCoun`, `Irradiatio`, `Slope`, `Aspect`,
+`Area` (= Grundfläche der Dachseite, identisch mit `Shape_Area`), `Eignung_T` (vermutlich Solarthermie, nicht dokumentiert), Verwaltungsspalten.
 
 ### Im Datensatz nachgeprüfte Zusammenhänge
 
@@ -118,7 +123,7 @@ Eingaben: Ziel-Ausnutzung `p` (%), Zeitraum `T` (Jahre), Strompreis `c` (ct/kWh)
 | CO₂-Faktor | `f = Σ CO2Savings ÷ Σ Yield` = 0,46 kg/kWh | **LUBW** |
 | CO₂-Einsparung pro Jahr | `E × f` | LUBW |
 | Investition | `P_neu × 900 €/kWp` | example |
-| Betriebskosten pro Jahr | 1,5 % der Investition | example |
+| Betriebskosten pro Jahr | 1 % der Investition (Vorgabe) | example |
 | Stromertrag pro Jahr (€) | `E × c / 100` | Eingabe |
 | Amortisation | Investition ÷ (Stromertrag − Betriebskosten) | abgeleitet |
 | Anteil am Verbrauch | `E ÷ 300 GWh` | example |
@@ -127,8 +132,31 @@ Vereinfachungen: konstante Erträge und Preise, keine Degradation, keine Zinsen,
 Anlagen gleichzeitig im Jahr 0. Der spezifische Ertrag ist der Mittelwert **aller** geeigneten
 Dachflächen. Es wird nicht angenommen, dass zuerst die besten Dächer belegt werden.
 
-**Offen (Quelle nötig):** Investitionskosten, Betriebskosten, Strompreis und Gesamtstromverbrauch
+**Offen (Quelle nötig):** Investitionskosten im Rechner (900 €/kWp) und Gesamtstromverbrauch
 Pforzheim (z. B. aus der Kommunalen Wärmeplanung bzw. von den Stadtwerken).
+
+## 5a. Gebäude-Steckbrief (Klick auf ein Gebäude in der Karte)
+
+Berechnet in `data_service.building_profile`, je Gebäude:
+
+| Wert | Formel / Quelle |
+|---|---|
+| Installiert | Σ MaStR-Anlagen am Gebäude (nur Anlagen mit Koordinaten, > 30 kW) |
+| Potenzial | LUBW Σ `Power`, Klassen 1–3 |
+| Genutzt | Installiert ÷ Potenzial × 100, höchstens 100 % (ist die Anlage größer als das LUBW-Potenzial, gilt das Dach als ausgeschöpft) |
+| Noch offen | max(Potenzial − Installiert, 0); ohne Anlage = Potenzial |
+| Dachfläche / davon PV-geeignet | LUBW Σ `Area3D` (alle Dachseiten) / Σ `PvArea` (Klassen 1–3) |
+| Anschaffungskosten | offen × Preis je kWp der Größenstufe von „offen“ aus `data/Tabelle_Anschaffungskosten_PVprokWp.md` (Nettopreise, Stand 2025); über 200 kWp: Preis der Stufe „bis 200“ (810 €/kWp) |
+| Laufende Kosten | 1 % der Anschaffungskosten pro Jahr |
+| Stromertrag | offen × (Σ `Yield` ÷ Σ `Power`) des Gebäudes |
+| Amortisation | Anschaffungskosten ÷ (Stromertrag × Strompreis − laufende Kosten); Strompreis = SMARD Day-Ahead (Tageswert) |
+| CO₂-Einsparung | offen × (Σ `CO2Savings` ÷ Σ `Power`) des Gebäudes |
+
+Der Steckbrief hat immer dieselben Zeilen. Ist eine Anlage nur in OpenStreetMap erfasst (Leistung
+unbekannt), stehen installierte Leistung, Genutzt, Noch offen und alle Ausbauwerte auf „unbekannt“ – es
+werden keine Werte angenommen. Ist nichts mehr auszubauen (Potenzial ausgeschöpft oder kein Potenzial),
+stehen die Ausbauwerte auf 0 bzw. „entfällt“. Eine Anlage auf einem Dach ohne LUBW-Potenzial gilt als
+zu 100 % genutzt.
 
 ## 6. Bekannte Einschränkungen
 
