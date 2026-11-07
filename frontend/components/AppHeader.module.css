@@ -1,11 +1,24 @@
+/*
+  Signethöhe = Wappenhöhe ≈ 32 px
+  Schutzzone: oben/unten ½ Wappenhöhe (16 px) → Kopfzeile 64 px,
+              links/rechts 1 Wappenbreite (32 px) frei von anderen Elementen
+*/
 .header {
+  --signet-h: 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 56px;
+  height: calc(var(--signet-h) * 2);
   padding: 0 var(--page-gutter);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-width: 0;
 }
 
 .brand {
@@ -26,19 +39,9 @@
   background: var(--surface-muted);
 }
 
-.city {
+.topic {
   font-size: 17px;
   color: var(--text);
-}
-
-.sep {
-  font-size: 18px;
-  color: var(--text-subtle);
-}
-
-.topic {
-  font-size: 13px;
-  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -70,9 +73,31 @@
   background: var(--pf-blue-700);
 }
 
-@media (max-width: 520px) {
-  .topic,
-  .sep {
+/* Signet mit Zusatz: rechte obere Ecke, Schutzzone links = 1 Wappenbreite */
+.signet {
+  display: block;
+  flex-shrink: 0;
+  margin-left: var(--signet-h);
+  line-height: 0;
+}
+
+.signet img {
+  display: block;
+  height: var(--signet-h);
+  width: auto;
+}
+
+@media (max-width: 760px) {
+  .topic {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    --signet-h: 24px;
+  }
+  .brand {
     display: none;
   }
 }
