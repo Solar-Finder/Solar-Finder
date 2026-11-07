@@ -76,6 +76,7 @@ export default function MapView({
       )}
       {view === "buildings" && installations && <InstallationLayer data={installations} />}
 
+      <AutoResize />
       <ViewReporter onViewChange={onViewChange} />
       <FitBounds data={postalAreas} selected={selectedPostalCode} />
       <MapTools fitData={postalAreas} selected={selectedPostalCode} />
@@ -251,6 +252,17 @@ function InstallationLayer({ data }) {
 }
 
 /* ---------- Ausschnitt melden (für das Nachladen) ---------- */
+/** Passt die Karte an, wenn sich ihr Container ändert (z. B. Filter ein-/ausgeklappt). */
+function AutoResize() {
+  const map = useMap();
+  useEffect(() => {
+    const ro = new ResizeObserver(() => map.invalidateSize({ pan: false }));
+    ro.observe(map.getContainer());
+    return () => ro.disconnect();
+  }, [map]);
+  return null;
+}
+
 function ViewReporter({ onViewChange }) {
   const map = useMapEvents({
     moveend: () => report(),

@@ -30,6 +30,75 @@
   grid-template-columns: 260px minmax(0, 1fr);
   gap: 16px;
   height: 486px;
+  position: relative;
+  transition: grid-template-columns 0.2s ease, column-gap 0.2s ease;
+}
+
+/* Eingeklappt: Panel hat keine Breite mehr, die Karte nimmt die ganze Zeile ein */
+.filterAndMapCollapsed {
+  grid-template-columns: 0px minmax(0, 1fr);
+  column-gap: 0;
+}
+
+.filtersHidden {
+  visibility: hidden;
+  padding-left: 0;
+  padding-right: 0;
+  border-width: 0;
+}
+
+/* Griff mittig auf der Kante zwischen Panel und Karte (bzw. am linken Kartenrand) */
+.panelToggle {
+  position: absolute;
+  top: 50%;
+  left: 268px; /* Panelbreite 260 px + halbe Lücke */
+  z-index: 1001;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 56px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-small);
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(17, 24, 39, 0.12);
+  cursor: pointer;
+  transition: left 0.2s ease, background 0.15s ease;
+}
+
+.filterAndMapCollapsed .panelToggle {
+  left: 0;
+}
+
+.panelToggle:hover {
+  background: var(--pf-blue-50);
+  border-color: var(--pf-blue-200);
+}
+
+.panelToggle:focus-visible {
+  outline: 2px solid var(--pf-blue);
+  outline-offset: 2px;
+}
+
+/* Text nur für Screenreader bzw. auf schmalen Bildschirmen sichtbar */
+.panelToggleText {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Chevron zeigt nach links (einklappen) bzw. rechts (ausklappen) */
+.chevronCollapse {
+  transform: rotate(90deg);
+}
+
+.chevronExpand {
+  transform: rotate(-90deg);
 }
 
 .filters {
@@ -463,9 +532,37 @@ fieldset.group:disabled .classChip {
 }
 
 @media (max-width: 860px) {
-  .filterAndMap {
+  .filterAndMap,
+  .filterAndMapCollapsed {
     grid-template-columns: 1fr;
     height: auto;
+  }
+  /* Schmale Bildschirme: Panel über der Karte, Griff als Leiste dazwischen */
+  .filtersHidden {
+    display: none;
+  }
+  .panelToggle,
+  .filterAndMapCollapsed .panelToggle {
+    position: static;
+    transform: none;
+    width: 100%;
+    height: 36px;
+    gap: 8px;
+  }
+  .panelToggleText {
+    position: static;
+    width: auto;
+    height: auto;
+    clip: auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .chevronCollapse {
+    transform: rotate(180deg);
+  }
+  .chevronExpand {
+    transform: none;
   }
   .mapFrame {
     height: 480px;

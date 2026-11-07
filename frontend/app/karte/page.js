@@ -44,6 +44,7 @@ export default function KartePage() {
   const [status, setStatus] = useState(null);
   const [stats, setStats] = useState({});
   const [error, setError] = useState(null);
+  const [filtersOpen, setFiltersOpen] = useState(true);
 
   const fail = () => setError("Die Kartendaten konnten nicht geladen werden. Läuft das Backend auf Port 8000?");
   // Nach erfolgreichem Nachladen die Meldung wieder ausblenden (sonst bleibt ein einzelner Aussetzer stehen)
@@ -190,15 +191,35 @@ export default function KartePage() {
 
       {error && <div className="error-banner" role="alert">{error}</div>}
 
-      <div className={s.filterAndMap}>
+      <div className={`${s.filterAndMap} ${filtersOpen ? "" : s.filterAndMapCollapsed}`}>
+        {/* Bleibt eingeklappt im DOM (inert), damit die Breite animiert werden kann */}
         <FilterPanel
           meta={meta}
           filters={filters}
           set={set}
           toggleSuitability={toggleSuitability}
           suitabilityReady={suitabilityReady}
-          onReset={() => setFilters(initialFilters(meta))}
+          hidden={!filtersOpen}
         />
+
+        {/* Griff zwischen Panel und Karte: klappt die Kartenansicht ein und aus */}
+        <button
+          type="button"
+          className={s.panelToggle}
+          onClick={() => setFiltersOpen((o) => !o)}
+          aria-expanded={filtersOpen}
+          aria-controls="kartenansicht-panel"
+          title={filtersOpen ? "Kartenansicht einklappen – Karte vergrößern" : "Kartenansicht ausklappen"}
+        >
+          <img
+            src="/icons/chevron-down.svg"
+            width={16}
+            height={16}
+            alt=""
+            className={filtersOpen ? s.chevronCollapse : s.chevronExpand}
+          />
+          <span className={s.panelToggleText}>Kartenansicht {filtersOpen ? "einklappen" : "ausklappen"}</span>
+        </button>
 
         <div className={s.mapFrame}>
           <MapView
@@ -277,15 +298,16 @@ export default function KartePage() {
 }
 
 /* ---------------- Filter ---------------- */
-function FilterPanel({ meta, filters, set, toggleSuitability, suitabilityReady, onReset }) {
+function FilterPanel({ meta, filters, set, toggleSuitability, suitabilityReady, hidden }) {
   return (
-    <aside className={`card ${s.filters}`} aria-labelledby="kartenansicht">
-      <div className="section-head">
-        <h2 id="kartenansicht" className={s.filterTitle}>Kartenansicht</h2>
-        <button type="button" className="link-button" style={{ fontSize: 11 }} onClick={onReset}>
-          Zurücksetzen
-        </button>
-      </div>
+    <aside
+      id="kartenansicht-panel"
+      className={`card ${s.filters} ${hidden ? s.filtersHidden : ""}`}
+      aria-labelledby="kartenansicht"
+      aria-hidden={hidden}
+      inert={hidden}
+    >
+      <h2 id="kartenansicht" className={s.filterTitle}>Kartenansicht</h2>
 
       <fieldset className={s.group}>
         <legend className={s.groupLabel}>Räumliche Darstellung</legend>
