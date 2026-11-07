@@ -347,17 +347,6 @@
   margin-top: 8px;
 }
 
-/* ---------- Fußbereich ---------- */
-.footer {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.dataBasis {
-  padding-top: 8px;
-}
-
 /* ---------- Responsiv ---------- */
 @media (max-width: 1240px) {
   .charts {

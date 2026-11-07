@@ -61,8 +61,6 @@ export default function RechnerPage() {
       </div>
 
       <Development forecast={forecast} config={config} isExample={isExample} />
-
-      <Assumptions forecast={forecast} config={config} isExample={isExample} />
     </div>
   );
 }
@@ -305,32 +303,5 @@ function Development({ forecast: f, config, isExample }) {
         </div>
       </div>
     </section>
-  );
-}
-
-/* ---------------- Annahmen & Datengrundlage ---------------- */
-function Assumptions({ forecast: f, config, isExample }) {
-  if (!f || !config) return null;
-  const a = f.assumptions;
-  return (
-    <footer className={s.footer}>
-      <p className="footnote">
-        {isExample ? "Beispielannahmen" : "Annahmen"}: {fmtMwp(f.potential_power_mwp)} Gesamtpotenzial ·{" "}
-        {fmtInt(a.investment_eur_per_kwp)} €/kWp Investition · {fmtInt(a.specific_yield_kwh_per_kwp)} kWh/kWp pro Jahr ·
-        Betriebskosten {fmtFlex(a.operating_cost_pct_of_investment, 1)} % der Investition/Jahr ·{" "}
-        {fmtFlex(a.co2_kg_per_kwh, 2)} kg CO₂/kWh · {fmtMwp(f.existing_power_mwp)} Bestand ·{" "}
-        {fmtPct(config.target_utilization_pct)} Zieldeckung · {fmtMwp(f.new_power_mwp)} zusätzlicher Ausbau.
-        <br />
-        Gesamter Solarstrom zum gewählten Strompreis bewertet; konstante Erträge und Preise, ohne Zinsen, Steuern und
-        Degradation. Prognosen beziehen sich ausschließlich auf den zusätzlichen Ausbau, nicht auf die bereits
-        installierten Anlagen.{isExample ? " Keine verifizierten Pforzheimer Bestandsdaten." : ""}
-      </p>
-      <p className={`footnote ${s.dataBasis}`}>
-        Datengrundlage: {isExample ? "Beispielwerte und Modellannahmen · " : ""}
-        {fmtMwp(f.existing_power_mwp)} Bestand · {fmtPct(config.target_utilization_pct)} Zieldeckung ·{" "}
-        {fmtMwp(f.new_power_mwp)} zusätzlicher Ausbau
-        {isExample ? " · keine verifizierten Bestandsdaten für Pforzheim" : ""}
-      </p>
-    </footer>
   );
 }

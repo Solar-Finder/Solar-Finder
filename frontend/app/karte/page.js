@@ -187,13 +187,6 @@ export default function KartePage() {
           colorFor={(item) => SUITABILITY_COLORS[item.key]}
         />
       </div>
-
-      <p className="footnote">
-        {isExample
-          ? "PLZ-Grenzen, Gebäude und Nutzungswerte sind Beispieldaten, keine amtlichen Geodaten. "
-          : ""}
-        Diagramme und PV-Übersicht berücksichtigen die gewählten Filter (PLZ-Gebiet, Gebäudekategorie, Eignungsklassen).
-      </p>
     </div>
   );
 }

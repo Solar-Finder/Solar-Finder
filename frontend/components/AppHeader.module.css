@@ -1,7 +1,7 @@
 /*
   Signethöhe = Wappenhöhe ≈ 32 px
   Schutzzone: oben/unten ½ Wappenhöhe (16 px) → Kopfzeile 64 px,
-              links/rechts 1 Wappenbreite (32 px) frei von anderen Elementen
+              seitlich 1 Wappenbreite (32 px) frei von anderen Elementen
 */
 .header {
   --signet-h: 32px;
@@ -14,35 +14,17 @@
   border-bottom: 1px solid var(--border);
 }
 
-.left {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  min-width: 0;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.signet {
+  display: block;
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  background: var(--surface-muted);
+  margin-right: var(--signet-h);
+  line-height: 0;
 }
 
-.topic {
-  font-size: 17px;
-  color: var(--text);
-  white-space: nowrap;
+.signet img {
+  display: block;
+  height: var(--signet-h);
+  width: auto;
 }
 
 .nav {
@@ -73,31 +55,8 @@
   background: var(--pf-blue-700);
 }
 
-/* Signet mit Zusatz: rechte obere Ecke, Schutzzone links = 1 Wappenbreite */
-.signet {
-  display: block;
-  flex-shrink: 0;
-  margin-left: var(--signet-h);
-  line-height: 0;
-}
-
-.signet img {
-  display: block;
-  height: var(--signet-h);
-  width: auto;
-}
-
-@media (max-width: 760px) {
-  .topic {
-    display: none;
-  }
-}
-
-@media (max-width: 480px) {
+@media (max-width: 400px) {
   .header {
-    --signet-h: 24px;
-  }
-  .brand {
-    display: none;
+    --signet-h: 26px;
   }
 }
