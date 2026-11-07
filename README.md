@@ -1,6 +1,11 @@
 # Prognose-von-Energiegewinnung-durch-Erneuerbare
 ## Links
 
+### genutzte Daten 
+
+Von lubw ([Enegieatls](https://www.energieatlas-bw.de/sonne/gebaeude/karten?activeLayer=solarkataster):
+- [udo.lubw.baden-wuerttemberg.de/...](https://udo.lubw.baden-wuerttemberg.de/projekte/navigatorurl/show?globalId=energie_sonne_dach.energie%3A%24SYSTEM%7BUDO_GEODOWNLOAD_URL%7Denergie%2FPV_Dachflaechenpotenzial.html#)
+
 ### Allgemein 
 - https://smartdashboard-pforzheim.vercel.app/klima (City Dashboard Pforzheim)
 - https://webtool.klimaatlas-bw.de/viewer/projection-expert#/kreise/8236?measurementType=temperatur-mittelwert (Klimavorhersage bis 2050)
