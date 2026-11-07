@@ -3,6 +3,9 @@
 export const PFORZHEIM_CENTER = [48.8915, 8.70];
 export const DEFAULT_ZOOM = 13;
 
+/** Ab dieser Zoomstufe werden einzelne Gebäude geladen (nach Kartenausschnitt) */
+export const BUILDINGS_MIN_ZOOM = 15;
+
 export const BASEMAPS = {
   standard: {
     label: "Standard-Map",
@@ -19,30 +22,30 @@ export const BASEMAPS = {
   },
 };
 
-/** Genutztes Potenzial in % → Klassen 1–4 (Legende im Mockup) */
+/** Genutztes Potenzial in % → Klassen (an die realen Werte der PLZ-Gebiete angepasst) */
 export const UTILIZATION_CLASSES = [
-  { max: 25, label: "0–25 %", color: "var(--map-class-1)", hex: "#eef3f8", text: "#142840" },
-  { max: 50, label: ">25–50 %", color: "var(--map-class-2)", hex: "#c3d3e2", text: "#142840" },
-  { max: 75, label: ">50–75 %", color: "var(--map-class-3)", hex: "#6f93b4", text: "#142840" },
-  { max: Infinity, label: ">75–100 %", color: "var(--map-class-4)", hex: "#1e5078", text: "#ffffff" },
+  { max: 5, label: "0–5 %", hex: "#eef3f8", text: "#142840" },
+  { max: 10, label: ">5–10 %", hex: "#c3d3e2", text: "#142840" },
+  { max: 15, label: ">10–15 %", hex: "#6f93b4", text: "#142840" },
+  { max: Infinity, label: ">15 %", hex: "#1e5078", text: "#ffffff" },
 ];
 
 /** Installierte Leistung je Gebiet in MWp → Klassen (PV-Ansicht „Bestand“) */
 export const INSTALLED_CLASSES = [
-  { max: 2, label: "0–2 MWp", hex: "#eef3f8", text: "#142840" },
-  { max: 4, label: ">2–4 MWp", hex: "#c3d3e2", text: "#142840" },
-  { max: 8, label: ">4–8 MWp", hex: "#6f93b4", text: "#142840" },
-  { max: Infinity, label: ">8 MWp", hex: "#1e5078", text: "#ffffff" },
+  { max: 3, label: "0–3 MWp", hex: "#eef3f8", text: "#142840" },
+  { max: 7, label: ">3–7 MWp", hex: "#c3d3e2", text: "#142840" },
+  { max: 12, label: ">7–12 MWp", hex: "#6f93b4", text: "#142840" },
+  { max: Infinity, label: ">12 MWp", hex: "#1e5078", text: "#ffffff" },
 ];
 
 export const classFor = (classes, value) => classes.find((c) => value <= c.max) ?? classes[classes.length - 1];
 
-/** Farben der Eignungsklassen (Gebäude) – gleiche Reihenfolge wie die Diagramme */
-export const SUITABILITY_COLORS = { 1: "#1e5078", 2: "#f0d23c", 3: "#c83737", 6: "#94a3b8" };
+/** Gebäudestatus → Farbe/Beschriftung */
+export const SOLAR_STATUS = {
+  existing: { label: "Solaranlage vorhanden", hex: "#1e5078" },
+  potential: { label: "Ungenutztes Potenzial", hex: "#f0d23c" },
+  none: { label: "Nebengebäude / kein nennenswertes Potenzial", hex: "#d1d5db" },
+};
 
-/** Kreisgrößen bestehender Anlagen */
-export const INSTALLATION_SIZES = [
-  { max: 10, label: "bis 10 kWp", radius: 4 },
-  { max: 20, label: ">10–20 kWp", radius: 6 },
-  { max: Infinity, label: ">20–30 kWp", radius: 8 },
-];
+/** Farben der Eignungsklassen (sobald LUBW-Daten vorliegen) */
+export const SUITABILITY_COLORS = { 1: "#1e5078", 2: "#f0d23c", 3: "#c83737", 6: "#94a3b8" };

@@ -17,6 +17,12 @@
   font-weight: 600;
   line-height: 23px;
   pointer-events: none;
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.35);
+}
+
+.areaLabelCompact {
+  font-size: 12px;
+  line-height: 16px;
 }
 
 /* Kartenwerkzeuge oben rechts */

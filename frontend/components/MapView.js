@@ -6,10 +6,9 @@ import { CircleMarker, GeoJSON, MapContainer, Marker, TileLayer, Tooltip, useMap
 import {
   BASEMAPS,
   DEFAULT_ZOOM,
-  INSTALLATION_SIZES,
   INSTALLED_CLASSES,
   PFORZHEIM_CENTER,
-  SUITABILITY_COLORS,
+  SOLAR_STATUS,
   UTILIZATION_CLASSES,
   classFor,
 } from "@/lib/mapConfig";
@@ -19,34 +18,49 @@ import styles from "./MapView.module.css";
 /**
  * Leaflet-Karte. Wird nur im Browser geladen (dynamic import, ssr: false).
  * props: basemap, view ('postal'|'buildings'), pvView ('potential'|'existing'),
- *        postalAreas, buildings, installations, selectedPostalCode, labels
+ *        postalAreas, buildings, installations, selectedPostalCode, labels,
+ *        onViewChange({ bbox, zoom }) – meldet den sichtbaren Ausschnitt (für das Nachladen von Gebäuden)
  * Legende und Hinweise liegen als Overlays in der Seite (siehe app/karte/page.js).
  */
-export default function MapView({ basemap, view, pvView, postalAreas, buildings, installations, selectedPostalCode, labels }) {
+export default function MapView({
+  basemap, view, pvView, postalAreas, buildings, installations, selectedPostalCode, labels, onViewChange,
+}) {
   const tiles = BASEMAPS[basemap] ?? BASEMAPS.standard;
 
   return (
-    <MapContainer center={PFORZHEIM_CENTER} zoom={DEFAULT_ZOOM} zoomControl={false} className={styles.map} scrollWheelZoom preferCanvas>
+    <MapContainer
+      center={PFORZHEIM_CENTER}
+      zoom={DEFAULT_ZOOM}
+      zoomControl={false}
+      zoomSnap={0.25}
+      zoomDelta={0.5}
+      className={styles.map}
+      scrollWheelZoom
+      preferCanvas
+    >
       <TileLayer key={basemap} url={tiles.url} attribution={tiles.attribution} maxZoom={tiles.maxZoom} />
 
       {view === "postal" && postalAreas && (
         <PostalLayer data={postalAreas} pvView={pvView} selected={selectedPostalCode} aerial={basemap === "aerial"} />
       )}
 
-      {view === "buildings" && pvView === "potential" && buildings && <BuildingLayer data={buildings} labels={labels} />}
+      {view === "buildings" && postalAreas && <PostalOutline data={postalAreas} selected={selectedPostalCode} />}
+      {view === "buildings" && buildings && <BuildingLayer data={buildings} labels={labels} />}
+      {view === "buildings" && installations && <InstallationLayer data={installations} />}
 
-      {view === "buildings" && pvView === "existing" && installations && (
-        <InstallationLayer data={installations} labels={labels} />
-      )}
-
+      <ViewReporter onViewChange={onViewChange} />
       <FitBounds data={postalAreas} selected={selectedPostalCode} />
       <MapTools fitData={postalAreas} selected={selectedPostalCode} />
     </MapContainer>
   );
 }
 
-/* ---------- PLZ-Gebiete ---------- */
+/* ---------- PLZ-Gebiete (Flächenfarbe nach Auslastung bzw. Bestand) ---------- */
 function PostalLayer({ data, pvView, selected, aerial }) {
+  // Bei kleinem Maßstab nur die PLZ beschriften, sonst überlappen die Texte
+  const map = useMapEvents({ zoomend: () => setZoom(map.getZoom()) });
+  const [zoom, setZoom] = useState(() => map.getZoom());
+  const compact = zoom < 13.25 && !selected;
   const key = useMemo(() => `${pvView}-${selected}-${aerial}-${data.features.map((f) => f.id).join()}`, [data, pvView, selected, aerial]);
   const cls = (p) =>
     pvView === "existing" ? classFor(INSTALLED_CLASSES, p.installed_power_mwp) : classFor(UTILIZATION_CLASSES, p.utilization_pct);
@@ -59,103 +73,152 @@ function PostalLayer({ data, pvView, selected, aerial }) {
         style={(f) => {
           const dim = selected && f.properties.postal_code !== selected;
           return {
-            color: "#ffffff",
-            weight: 2,
+            color: dim ? "#ffffff" : "#1e5078",
+            weight: !dim && selected ? 3 : 1.5,
             fillColor: cls(f.properties).hex,
-            fillOpacity: dim ? 0.25 : aerial ? 0.72 : 0.88,
+            fillOpacity: dim ? 0.2 : aerial ? 0.72 : 0.82,
           };
+        }}
+        onEachFeature={(f, layer) => {
+          const p = f.properties;
+          layer.bindTooltip(
+            `<strong>PLZ ${escapeHtml(p.postal_code)}</strong><br/>` +
+              `${fmtFlex(p.installed_power_mwp, 1)} MWp installiert · ${fmtInt(p.installation_count)} Anlagen<br/>` +
+              `davon ${fmtInt(p.located_installation_count)} gebäudegenau verortet, ${fmtInt(p.balcony_count)} Balkonkraftwerke<br/>` +
+              `Potenzial ca. ${fmtFlex(p.potential_power_mwp, 0)} MWp · ${fmtFlex(p.utilization_pct, 1)} % genutzt`,
+            { sticky: true }
+          );
         }}
       />
       {data.features.map((f) => {
         const p = f.properties;
+        if (selected && p.postal_code !== selected) return null;
+        // Zu kleine Flächen (in Pixeln) nicht beschriften – Infos dann per Tooltip
+        const bnds = L.geoJSON(f).getBounds();
+        const pxWidth = map.latLngToContainerPoint(bnds.getNorthEast()).x - map.latLngToContainerPoint(bnds.getSouthWest()).x;
+        if (pxWidth < (compact ? 100 : 150)) return null;
         const c = cls(p);
         const [lon, lat] = p.label_point ?? centroid(f.geometry);
-        const value = pvView === "existing" ? `${fmtFlex(p.installed_power_mwp, 1)} MWp installiert` : `${fmtFlex(p.utilization_pct, 0)} % genutzt`;
+        const value = pvView === "existing" ? `${fmtFlex(p.installed_power_mwp, 1)} MWp installiert` : `${fmtFlex(p.utilization_pct, 1)} % genutzt`;
+        const short = pvView === "existing" ? `${fmtFlex(p.installed_power_mwp, 1)} MWp` : `${fmtFlex(p.utilization_pct, 1)} %`;
         const icon = L.divIcon({
-          className: styles.areaLabel,
-          html: `<span style="color:${c.text}">${escapeHtml(p.postal_code)}<br/>${escapeHtml(value)}</span>`,
-          iconSize: [150, 46],
-          iconAnchor: [75, 23],
+          className: `${styles.areaLabel} ${compact ? styles.areaLabelCompact : ""}`,
+          html: `<span style="color:${c.text}">${escapeHtml(p.postal_code)}<br/>${escapeHtml(compact ? short : value)}</span>`,
+          iconSize: compact ? [80, 34] : [160, 46],
+          iconAnchor: compact ? [40, 17] : [80, 23],
         });
-        return <Marker key={`${f.id}-${pvView}`} position={[lat, lon]} icon={icon} interactive={false} keyboard={false} />;
+        return <Marker key={`${f.id}-${pvView}-${compact}`} position={[lat, lon]} icon={icon} interactive={false} keyboard={false} />;
       })}
     </>
   );
 }
 
-/* ---------- Gebäude (freies Potenzial) ---------- */
-const FOOTPRINT_MIN_ZOOM = 16; // darunter wären Grundrisse kleiner als ein Pixel → Punkte
-
-function BuildingLayer({ data, labels }) {
-  const [zoom, setZoom] = useState(() => null);
-  const map = useMapEvents({ zoomend: () => setZoom(map.getZoom()) });
-  const z = zoom ?? map.getZoom();
-  const key = useMemo(() => data.features.map((f) => f.id).join(), [data]);
-  const color = (p) => SUITABILITY_COLORS[p.suitability] ?? "#94a3b8";
-  const lines = (p) => [
-    labels.categories[p.category] ?? String(p.category),
-    `Eignungsklasse ${p.suitability} · ${labels.roofTypes[p.roof_type] ?? p.roof_type}`,
-    `Potenzial ${fmtFlex(p.potential_kwp, 1)} kWp · ${fmtInt(p.potential_yield_kwh_per_year ?? 0)} kWh/Jahr`,
-  ];
-  // Leaflet-Tooltips erwarten HTML → Texte escapen
-  const tooltip = (p) => {
-    const [title, ...rest] = lines(p).map(escapeHtml);
-    return `<strong>${title}</strong><br/>${rest.join("<br/>")}`;
-  };
-
-  if (z < FOOTPRINT_MIN_ZOOM) {
-    return data.features.map((f) => {
-      const [lon, lat] = centroid(f.geometry);
-      return (
-        <CircleMarker
-          key={f.id}
-          center={[lat, lon]}
-          radius={z >= 14 ? 5 : 4}
-          pathOptions={{ color: "#ffffff", weight: 1, fillColor: color(f.properties), fillOpacity: 0.95 }}
-        >
-          <Tooltip>
-            {lines(f.properties).map((t, i) => (i === 0 ? <strong key={i}>{t}</strong> : <div key={i}>{t}</div>))}
-          </Tooltip>
-        </CircleMarker>
-      );
-    });
-  }
-
+/* ---------- PLZ-Umrisse in der Gebäudeansicht ---------- */
+function PostalOutline({ data, selected }) {
+  const key = useMemo(() => `${selected}-${data.features.length}`, [data, selected]);
   return (
     <GeoJSON
       key={key}
       data={data}
-      style={(f) => ({ color: "#ffffff", weight: 0.8, fillColor: color(f.properties), fillOpacity: 0.9 })}
-      onEachFeature={(f, layer) => layer.bindTooltip(tooltip(f.properties), { sticky: true })}
+      interactive={false}
+      style={(f) => {
+        const active = selected && f.properties.postal_code === selected;
+        return { color: "#1e5078", weight: active ? 3 : 1, opacity: active ? 0.9 : 0.45, fill: false, dashArray: active ? null : "4 4" };
+      }}
     />
   );
 }
 
-/* ---------- Bestehende Anlagen ---------- */
-function InstallationLayer({ data, labels }) {
+/* ---------- Gebäude (Solaranlage vorhanden / ungenutztes Potenzial) ---------- */
+function BuildingLayer({ data, labels }) {
+  const key = useMemo(() => data.features.map((f) => f.id).join(), [data]);
+  return (
+    <GeoJSON
+      key={key}
+      data={data}
+      style={(f) => {
+        const st = SOLAR_STATUS[f.properties.solar_status] ?? SOLAR_STATUS.none;
+        return {
+          color: f.properties.solar_status === "existing" ? "#0f2c44" : "#ffffff",
+          weight: f.properties.solar_status === "existing" ? 1.2 : 0.6,
+          fillColor: st.hex,
+          fillOpacity: f.properties.solar_status === "none" ? 0.55 : 0.9,
+        };
+      }}
+      onEachFeature={(f, layer) => {
+        const p = f.properties;
+        const lines = [
+          SOLAR_STATUS[p.solar_status]?.label ?? "",
+          [p.name, labels.categories[p.category] ?? p.category].filter(Boolean).join(" · "),
+          p.solar_status === "existing"
+            ? p.installed_kwp > 0
+              ? `${fmtFlex(p.installed_kwp, 1)} kWp laut Marktstammdatenregister`
+              : "Anlage in OpenStreetMap erfasst"
+            : null,
+          p.potential_kwp > 0
+            ? `Dachpotenzial ca. ${fmtFlex(p.potential_kwp, 0)} kWp${p.potential_status === "estimated" ? " (geschätzt)" : ""}`
+            : null,
+          `Grundfläche ${fmtInt(p.footprint_m2)} m² · PLZ ${p.postal_code ?? "–"}`,
+        ].filter(Boolean).map(escapeHtml);
+        layer.bindTooltip(`<strong>${lines[0]}</strong><br/>${lines.slice(1).join("<br/>")}`, { sticky: true });
+      }}
+    />
+  );
+}
+
+/* ---------- Verortete MaStR-Anlagen (> 30 kW) ---------- */
+function InstallationLayer({ data }) {
   return data.features.map((f) => {
     const p = f.properties;
     const [lon, lat] = f.geometry.coordinates;
-    const size = classFor(INSTALLATION_SIZES, p.power_kwp);
+    const radius = p.power_kwp > 500 ? 9 : p.power_kwp > 100 ? 7 : 5;
     return (
       <CircleMarker
         key={f.id}
         center={[lat, lon]}
-        radius={size.radius}
-        pathOptions={{ color: "#ffffff", weight: 1.5, fillColor: "#1e5078", fillOpacity: 0.9 }}
+        radius={radius}
+        pathOptions={{ color: "#ffffff", weight: 1.5, fillColor: "#c83737", fillOpacity: 0.95 }}
       >
         <Tooltip>
           <strong>{fmtFlex(p.power_kwp, 1)} kWp</strong>
-          <br />
-          {labels.categories[p.category] ?? ""}
-          {p.commissioned_on ? ` · in Betrieb seit ${p.commissioned_on.slice(0, 4)}` : ""}
+          {p.street && (
+            <div>
+              {p.street} {p.house_number ?? ""}, {p.postal_code}
+            </div>
+          )}
+          <div>
+            {p.plant_type ?? "Solaranlage"}
+            {p.commissioned_on ? ` · seit ${p.commissioned_on.slice(0, 4)}` : ""}
+          </div>
+          <div>MaStR {f.id}</div>
         </Tooltip>
       </CircleMarker>
     );
   });
 }
 
-/* ---------- Ausschnitt anpassen ---------- */
+/* ---------- Ausschnitt melden (für das Nachladen) ---------- */
+function ViewReporter({ onViewChange }) {
+  const map = useMapEvents({
+    moveend: () => report(),
+    zoomend: () => report(),
+  });
+  const report = () => {
+    if (!onViewChange) return;
+    const b = map.getBounds();
+    onViewChange({
+      zoom: map.getZoom(),
+      bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((v) => v.toFixed(5)).join(","),
+    });
+  };
+  useEffect(() => {
+    map.whenReady(report);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+}
+
+/* ---------- Ausschnitt an PLZ-Auswahl anpassen ---------- */
 function FitBounds({ data, selected }) {
   const map = useMap();
   useEffect(() => {

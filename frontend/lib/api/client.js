@@ -1,5 +1,5 @@
 /**
- * API-Client für das Python-Backend. Vertrag: docs/api/openapi.yaml
+ * API-Client für das Python-Backend. Vertrag: docs/api/openapi.json
  *
  * Standardmäßig relativ (/api/v1) – Next.js leitet per Rewrite an das Backend
  * weiter (siehe next.config.mjs). Überschreibbar mit NEXT_PUBLIC_API_URL.

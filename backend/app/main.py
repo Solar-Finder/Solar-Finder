@@ -1,18 +1,23 @@
-"""FastAPI-Backend: liefert Daten im Format von docs/api/openapi.yaml.
+"""FastAPI-Backend: liefert Daten im Format von docs/api/openapi.json.
 
 Start:  uvicorn app.main:app --reload --port 8000   (im Ordner backend/)
 Doku:   http://localhost:8000/docs
 
-Das Frontend (Next.js) leitet /api/* per Rewrite hierher weiter.
+Beim ersten Start werden MaStR- und OSM-Daten geladen und in backend/data/cache
+abgelegt (dauert einige Minuten); danach kommen sie aus dem Cache.
+Neu laden:  python -m app.refresh
 """
 from __future__ import annotations
 
+import threading
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import APIRouter, FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import data_service as ds
+from .geo_model import get_model
 from .schemas import (
     BuildingCategory,
     BuildingCollection,
@@ -22,11 +27,38 @@ from .schemas import (
     InstallationCollection,
     Meta,
     PostalAreaCollection,
+    SolarStatus,
     Status,
     SuitabilityClass,
 )
 
-app = FastAPI(title="PV-Prognose Pforzheim", version="0.2.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Datenmodell im Hintergrund vorbereiten, damit der erste Request schnell ist
+    threading.Thread(target=get_model, daemon=True).start()
+    yield
+
+
+API_DESCRIPTION = """
+Vertrag zwischen Python-Backend (FastAPI) und JavaScript-Frontend (Next.js).
+
+**Datenquellen**
+- PV-Anlagen: Marktstammdatenregister (alle Einheiten „In Betrieb“, Gemeinde Pforzheim).
+  Koordinaten/Adresse sind nur bei Anlagen > 30 kW öffentlich; kleinere Anlagen nur je PLZ.
+- PLZ-Grenzen, Gebäudegrundrisse, zusätzlich erfasste Dachanlagen: OpenStreetMap (© OSM-Mitwirkende, ODbL).
+- Dachpotenzial: bis zur Anbindung der LUBW-Dachflächendaten aus der Grundfläche geschätzt
+  (`potential_status: estimated`); Eignungsklassen und Dachformen folgen (`pending`).
+
+**Konventionen**
+- Einheiten im Feldnamen (`_mwp`, `_kwp`, `_pct`, `_eur`, `_ct_per_kwh`, `_mwh`, `_t`, `_m2`).
+- GeoJSON in WGS84 (EPSG:4326), Koordinaten `[lon, lat]`.
+- Mehrfach-Filter als wiederholte Query-Parameter (`?category=public&category=commercial`).
+
+Diese Datei wird erzeugt mit `python -m app.export_openapi` (im Ordner `backend/`).
+"""
+
+app = FastAPI(title="PV-Prognose Pforzheim", version="0.3.0", description=API_DESCRIPTION, lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -37,7 +69,7 @@ app.add_middleware(
 api = APIRouter(prefix="/api/v1")
 
 CategoryQ = Query(None, description="Gebäudekategorie(n), mehrfach erlaubt")
-SuitabilityQ = Query(None, description="Eignungsklasse(n) 1, 2, 3, 6 – mehrfach erlaubt")
+SuitabilityQ = Query(None, description="Eignungsklasse(n) 1, 2, 3, 6 – wirksam, sobald LUBW-Daten angebunden sind")
 
 
 @api.get("/meta", response_model=Meta, tags=["status"])
@@ -50,30 +82,29 @@ def get_status(postal_code: Optional[str] = None):
     return ds.status(postal_code)
 
 
-@api.get("/map/installations", response_model=InstallationCollection, tags=["map"])
-def get_installations(
-    bbox: Optional[str] = None,
-    postal_code: Optional[str] = None,
-    category: Optional[list[BuildingCategory]] = CategoryQ,
-    max_power_kwp: float = 30,
-):
-    return ds.installations(bbox, postal_code, category, max_power_kwp)
+@api.get("/map/postal-areas", response_model=PostalAreaCollection, tags=["map"])
+def get_postal_areas(postal_code: Optional[str] = None):
+    return ds.postal_areas(postal_code)
 
 
 @api.get("/map/buildings", response_model=BuildingCollection, tags=["map"])
 def get_buildings(
-    bbox: Optional[str] = None,
+    bbox: Optional[str] = Query(None, description="minLon,minLat,maxLon,maxLat – empfohlen, sonst sehr viele Gebäude"),
     postal_code: Optional[str] = None,
     category: Optional[list[BuildingCategory]] = CategoryQ,
-    suitability: Optional[list[SuitabilityClass]] = SuitabilityQ,
-    only_free_potential: bool = False,
+    solar_status: Optional[list[SolarStatus]] = Query(None, description="existing, potential, none"),
+    limit: int = Query(ds.MAX_BUILDINGS, ge=1, le=ds.MAX_BUILDINGS),
 ):
-    return ds.buildings(bbox, postal_code, category, suitability, only_free_potential)
+    return ds.buildings(bbox, postal_code, category, solar_status, limit)
 
 
-@api.get("/map/postal-areas", response_model=PostalAreaCollection, tags=["map"])
-def get_postal_areas(postal_code: Optional[str] = None):
-    return ds.postal_areas(postal_code)
+@api.get("/map/installations", response_model=InstallationCollection, tags=["map"])
+def get_installations(
+    bbox: Optional[str] = None,
+    postal_code: Optional[str] = None,
+    max_power_kwp: Optional[float] = None,
+):
+    return ds.installations(bbox, postal_code, max_power_kwp)
 
 
 def _stats_route(path: str, fn):

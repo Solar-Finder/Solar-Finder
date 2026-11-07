@@ -213,6 +213,51 @@ fieldset.group > legend {
   color: var(--text-muted);
 }
 
+.mapHint {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  z-index: 1000;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  color: var(--text);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.pendingTag {
+  font-weight: 400;
+  color: var(--text-subtle);
+}
+
+fieldset.group:disabled .classChip {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.countNote {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.pendingBody {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 8px 0 0 8px;
+}
+
+.pendingText {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
 .legend {
   position: absolute;
   left: 15px;
@@ -281,9 +326,11 @@ fieldset.group > legend {
 
 .dot {
   display: inline-block;
+  width: 12px;
+  height: 12px;
   border: 1.5px solid #fff;
   border-radius: 50%;
-  background: var(--pf-blue);
+  background: var(--pf-red);
   box-shadow: 0 0 0 1px var(--border);
 }
 

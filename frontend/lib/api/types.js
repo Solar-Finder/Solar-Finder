@@ -1,20 +1,23 @@
 /**
- * JSDoc-Typen der API (gespiegelt aus docs/api/openapi.yaml bzw. backend/app/schemas.py).
+ * JSDoc-Typen der API (gespiegelt aus docs/api/openapi.json bzw. backend/app/schemas.py).
  * Reine Typdatei – exportiert zur Laufzeit nichts.
  */
 
-/** @typedef {'example'|'verified'} DataStatus */
-/** @typedef {'residential'|'public'|'commercial'|'agricultural'} BuildingCategory */
-/** @typedef {1|2|3|6} SuitabilityClass */
+/** @typedef {'verified'|'estimated'|'example'|'pending'} DataStatus */
+/** @typedef {'residential'|'public'|'commercial'|'agricultural'|'other'} BuildingCategory */
+/** @typedef {1|2|3|6} SuitabilityClass  folgt mit den LUBW-Daten */
 /** @typedef {'gable'|'flat'|'shed'|'other'} RoofType */
 /** @typedef {'potential'|'existing'} PvView */
+/** @typedef {'existing'|'potential'|'none'} SolarStatus */
 
 /** @typedef {{value: string|number, label: string}} LabeledOption */
 /** @typedef {{min: number, max: number, step: number, default: number}} Range */
 
 /**
  * @typedef {Object} Meta
- * @property {DataStatus} data_status
+ * @property {DataStatus} installed_status   MaStR → verified
+ * @property {DataStatus} potential_status   estimated bis LUBW-Daten vorliegen
+ * @property {DataStatus} suitability_status pending bis LUBW-Daten vorliegen
  * @property {LabeledOption[]} categories
  * @property {LabeledOption[]} suitability_classes
  * @property {LabeledOption[]} roof_types
@@ -22,7 +25,7 @@
  * @property {LabeledOption[]} postal_codes
  * @property {{target_utilization_pct: Range, horizon_years: Range, electricity_price_ct_per_kwh: Range}} sliders
  * @property {{value_ct_per_kwh: number, source: string, is_example: boolean}} electricity_price
- * @property {{name: string, url: string, retrieved_at?: string}[]} sources
+ * @property {{name: string, url: string, retrieved_at?: string, note?: string}[]} sources
  * @property {string} data_as_of
  */
 
@@ -31,9 +34,12 @@
  * @property {number} installed_power_mwp
  * @property {number} potential_power_mwp
  * @property {number} utilization_pct
- * @property {number} installation_count
+ * @property {number} installation_count          alle registrierten Anlagen
+ * @property {number} located_installation_count  davon mit Koordinaten (> 30 kW)
+ * @property {number} balcony_count
+ * @property {DataStatus} installed_status
+ * @property {DataStatus} potential_status
  * @property {string} source
- * @property {DataStatus} data_status
  * @property {string} data_as_of
  */
 
@@ -45,27 +51,54 @@
  * @property {SuitabilityClass[]} [suitability]
  */
 
-/** @typedef {{postal_code: string, name?: string, installed_power_mwp: number, potential_power_mwp: number, utilization_pct: number, label_point?: [number, number]}} PostalAreaProps */
-/** @typedef {{type: 'FeatureCollection', features: {type: 'Feature', id: string, geometry: any, properties: PostalAreaProps}[]}} PostalAreaCollection */
+/**
+ * @typedef {Object} PostalAreaProps
+ * @property {string} postal_code
+ * @property {string} [name]
+ * @property {number} installed_power_mwp
+ * @property {number} potential_power_mwp
+ * @property {number} utilization_pct
+ * @property {number} installation_count
+ * @property {number} located_installation_count
+ * @property {number} balcony_count
+ * @property {number} buildings_with_solar
+ * @property {number} buildings_with_potential
+ * @property {[number, number]} [label_point]
+ */
+/** @typedef {{type: 'FeatureCollection', features: {type: 'Feature', id: string, geometry: any, properties: PostalAreaProps}[], potential_status: DataStatus}} PostalAreaCollection */
 
 /**
  * @typedef {Object} BuildingProps
  * @property {BuildingCategory} category
- * @property {SuitabilityClass} suitability
- * @property {RoofType} roof_type
- * @property {number} [roof_area_m2]
+ * @property {string} building_type   OSM-Gebäudetyp
+ * @property {string|null} [name]
+ * @property {number} footprint_m2
+ * @property {SolarStatus} solar_status
+ * @property {number} installed_kwp   Summe zugeordneter MaStR-Anlagen
+ * @property {('mastr'|'osm')[]} solar_sources
  * @property {number} potential_kwp
- * @property {number} [potential_yield_kwh_per_year]
- * @property {number} installed_kwp  0 = freies Potenzial
- * @property {string} postal_code
+ * @property {DataStatus} potential_status
+ * @property {SuitabilityClass|null} [suitability]
+ * @property {RoofType|null} [roof_type]
+ * @property {string|null} [postal_code]
  */
-/** @typedef {{type: 'FeatureCollection', features: {type: 'Feature', id: string, geometry: any, properties: BuildingProps}[]}} BuildingCollection */
+/** @typedef {{type: 'FeatureCollection', features: {type: 'Feature', id: string, geometry: any, properties: BuildingProps}[], truncated: boolean}} BuildingCollection */
 
-/** @typedef {{power_kwp: number, commissioned_on?: string|null, postal_code: string, category?: BuildingCategory}} InstallationProps */
-/** @typedef {{type: 'FeatureCollection', features: {type: 'Feature', id: string, geometry: {type: 'Point', coordinates: [number, number]}, properties: InstallationProps}[]}} InstallationCollection */
+/**
+ * @typedef {Object} InstallationProps
+ * @property {number} power_kwp
+ * @property {string|null} [commissioned_on]
+ * @property {string|null} [postal_code]
+ * @property {string|null} [street]
+ * @property {string|null} [house_number]
+ * @property {string|null} [plant_type]
+ * @property {string|null} [building_use]
+ * @property {string|null} [building_id]
+ */
+/** @typedef {{type: 'FeatureCollection', features: {type: 'Feature', id: string, geometry: {type: 'Point', coordinates: [number, number]}, properties: InstallationProps}[], unlocated_count: number}} InstallationCollection */
 
 /** @typedef {{key: string, label: string, building_count: number, potential_kwp: number, share_pct: number}} BreakdownItem */
-/** @typedef {{basis: 'count', data_status: DataStatus, items: BreakdownItem[]}} Breakdown */
+/** @typedef {{basis: 'count', data_status: DataStatus, note?: string|null, items: BreakdownItem[]}} Breakdown */
 
 /**
  * @typedef {Object} ForecastRequest

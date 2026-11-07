@@ -47,7 +47,8 @@ export default function RechnerPage() {
   }, [config]);
 
   const set = (key) => (value) => setConfig((c) => ({ ...c, [key]: value }));
-  const isExample = meta?.data_status === "example";
+  // Modellannahmen (Verbrauch, Kosten …) sind noch Beispielwerte
+  const isExample = forecast?.data_status === "example";
 
   return (
     <div className="page">
@@ -83,8 +84,11 @@ function Overview({ status }) {
       </div>
       <div className={s.statRow}>
         <Stat label="Aktuell installiert" value={status && fmtMwp(status.installed_power_mwp)} />
-        <Stat label="Potenziell" value={status && fmtMwp(status.potential_power_mwp)} />
-        <Stat label="Gedeckt" value={status && fmtPct(status.utilization_pct)} highlight />
+        <Stat
+          label={status?.potential_status === "estimated" ? "Potenziell (geschätzt)" : "Potenziell"}
+          value={status && fmtMwp(status.potential_power_mwp)}
+        />
+        <Stat label="Gedeckt" value={status && fmtPct(status.utilization_pct, 1)} highlight />
       </div>
     </section>
   );

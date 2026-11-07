@@ -74,19 +74,22 @@ Design:
 - Design: Figma-Mockups + Corporate Design Stadt Pforzheim (Tokens in `frontend/app/globals.css`)
 
 ### Backend
-- Python / FastAPI in `backend/` – aktuell mit Beispieldaten (`backend/app/data_service.py`)
-- Schnittstellen-Vertrag: `docs/api/openapi.yaml`, interaktiv unter http://localhost:8000/docs
+- Python / FastAPI in `backend/` (`backend/app/data_service.py`, räumliche Verknüpfung in `geo_model.py`)
+- Schnittstellen-Vertrag: `docs/api/openapi.json` (erzeugt mit `python -m app.export_openapi`), interaktiv unter http://localhost:8000/docs
 
 ### Lokal starten
 ```bash
 cd backend && python -m venv .venv && .venv/Scripts/pip install -r requirements.txt
-.venv/Scripts/python -m uvicorn app.main:app --reload --port 8000
+.venv/Scripts/python -m uvicorn app.main:app --reload --reload-dir app --port 8000
 ```
+Beim ersten Start lädt das Backend MaStR- und OSM-Daten (ca. 5 Minuten) nach `backend/data/cache/` (nicht im Git). Neu laden: `.venv/Scripts/python -m app.refresh`.
 ```bash
 cd frontend && npm install && npm run dev
 ```
 Danach http://localhost:3000 öffnen (das Frontend leitet `/api/*` an das Backend auf Port 8000 weiter).
 
 ### Data
-- APIs
-- lokal: Historische Solaranlagen-Daten
+- **Marktstammdatenregister** (API): alle PV-Anlagen „In Betrieb“ in Pforzheim. Adresse/Koordinaten nur bei Anlagen > 30 kW öffentlich, kleinere nur mit PLZ → nur Großanlagen sind gebäudegenau verortbar. Cache: 1 Tag.
+- **OpenStreetMap** (Overpass-API): PLZ-Grenzen, Gebäudegrundrisse, zusätzlich erfasste Dachanlagen. Cache: 30 bzw. 7 Tage.
+- **LUBW Dachflächenpotenzial**: folgt. Bis dahin wird das Dachpotenzial aus der Gebäudegrundfläche geschätzt (50 % nutzbar, 0,18 kWp/m², Annahmen in `backend/app/geo_model.py`); Eignungsklassen und Dachformen werden nachgeliefert.
+- Wirtschaftlichkeit (Investition, Ertrag, CO₂, Verbrauch, Strompreis): noch Beispielannahmen.
