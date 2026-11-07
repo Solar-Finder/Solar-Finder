@@ -81,6 +81,7 @@ class Building:
     roof_type: Optional[str] = None
     postal_code: Optional[str] = None
     name: Optional[str] = None
+    center: tuple = (0.0, 0.0)  # Punkt sicher innerhalb des Grundrisses (lon, lat)
     installed_kwp: float = 0.0
     mastr_ids: list = field(default_factory=list)
     osm_solar: bool = False
@@ -101,6 +102,7 @@ class Model:
     retrieved: dict
     areas: list          # [{postal_code, name, geom, geojson}]
     buildings: list      # [Building]
+    by_id: dict          # Gebäude-ID → Building
     tree: STRtree
     units: list          # MaStR-Einheiten (dict) inkl. building_id
     located_units: list
@@ -195,6 +197,7 @@ def _build() -> Model:
             footprint_m2=round(fp, 1), potential_kwp=round(kwp, 1),
             potential_kwh_per_year=round(kwh, 1), suitability=suitability, roof_type=roof_type,
             postal_code=areas[hits[0]]["postal_code"] if len(hits) else None, name=tags.get("name"),
+            center=(round(c.x, 6), round(c.y, 6)),
         ))
     tree = STRtree([b.geom for b in buildings])
     radius_deg = MATCH_RADIUS_M / _MY
@@ -253,5 +256,5 @@ def _build() -> Model:
         retrieved={"mastr": m_data["retrieved_at"], "osm_buildings": b_data["retrieved_at"],
                    "osm_postal_areas": a_data["retrieved_at"], "osm_solar": s_data["retrieved_at"],
                    "lubw_roofs": roof_data["retrieved_at"]},
-        areas=areas, buildings=buildings, tree=tree, units=units, located_units=located, plz_stats=dict(stats),
+        areas=areas, buildings=buildings, by_id={b.id: b for b in buildings}, tree=tree, units=units, located_units=located, plz_stats=dict(stats),
     )

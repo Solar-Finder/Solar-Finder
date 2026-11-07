@@ -77,16 +77,47 @@ Design:
 - Python / FastAPI in `backend/` (`backend/app/data_service.py`, räumliche Verknüpfung in `geo_model.py`)
 - Schnittstellen-Vertrag: `docs/api/openapi.json` (erzeugt mit `python -m app.export_openapi`), interaktiv unter http://localhost:8000/docs
 
-### Lokal starten
-```bash
-cd backend && python -m venv .venv && .venv/Scripts/pip install -r requirements.txt
-.venv/Scripts/python -m uvicorn app.main:app --reload --reload-dir app --port 8000
-```
-Beim ersten Start lädt das Backend MaStR- und OSM-Daten (ca. 5 Minuten) nach `backend/data/cache/` (nicht im Git). Neu laden: `.venv/Scripts/python -m app.refresh`.
-```bash
-cd frontend && npm install && npm run dev
-```
-Danach http://localhost:3000 öffnen (das Frontend leitet `/api/*` an das Backend auf Port 8000 weiter).
+## Lokal starten (VS Code, Windows)
+
+Es werden **zwei Terminals** benötigt – eins für das Backend, eins für das Frontend.
+Neues Terminal: **Terminal → Neues Terminal**, weiteres Terminal über das **+** im Terminal-Bereich.
+Die Befehle gelten für PowerShell (Standard in VS Code unter Windows).
+
+**Voraussetzungen:** Python 3.11+ und Node.js 20+
+
+### 1. Backend (Terminal 1)
+
+| Schritt | Ordner | Befehl |
+|---|---|---|
+| In den Ordner wechseln | Projektordner | `cd backend` |
+| Python-Umgebung anlegen *(nur beim ersten Mal)* | `backend` | `python -m venv .venv` |
+| Pakete installieren *(nur beim ersten Mal)* | `backend` | `.venv\Scripts\pip install -r requirements.txt` |
+| **Backend starten** | `backend` | `.venv\Scripts\python -m uvicorn app.main:app --reload --reload-dir app --timeout-keep-alive 75 --port 8000` |
+
+✅ Läuft, sobald `Application startup complete` erscheint → API-Doku unter http://localhost:8000/docs
+
+> **Erster Start:** Das Backend lädt die Daten aus Marktstammdatenregister und OpenStreetMap (ca. 5 Minuten)
+> und speichert sie in `backend/data/cache/` (nicht im Git). Danach startet es in Sekunden.
+
+### 2. Frontend (Terminal 2)
+
+| Schritt | Ordner | Befehl |
+|---|---|---|
+| In den Ordner wechseln | Projektordner | `cd frontend` |
+| Pakete installieren *(nur beim ersten Mal)* | `frontend` | `npm install` |
+| **Frontend starten** | `frontend` | `npm run dev` |
+
+✅ Danach im Browser öffnen: **http://localhost:3000**
+
+### Gut zu wissen
+
+- **Reihenfolge:** zuerst das Backend starten – sonst zeigt die Website „Daten konnten nicht geladen werden“.
+- **Beenden:** im jeweiligen Terminal `Strg + C`.
+- **Daten neu laden** (im Ordner `backend`): `.venv\Scripts\python -m app.refresh` – danach Backend neu starten.
+- **API-Vertrag neu erzeugen** (im Ordner `backend`): `.venv\Scripts\python -m app.export_openapi` → `docs/api/openapi.json`
+- **Fehler „Ausführung von Skripts ist auf diesem System deaktiviert“** bei `npm`: einmalig
+  `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` ausführen – oder im Terminal-Menü (Pfeil neben **+**) auf **Command Prompt** wechseln.
+- **Andere Backend-Adresse:** Der Browser ruft das Backend direkt unter Port 8000 auf (CORS). Eine andere Adresse lässt sich mit der Umgebungsvariable `NEXT_PUBLIC_API_URL` setzen. Bewusst kein Next.js-Rewrite-Proxy: Unter Windows kamen größere Antworten darüber abgeschnitten an.
 
 ### Data
 - **Marktstammdatenregister** (API): alle PV-Anlagen „In Betrieb“ in Pforzheim. Adresse/Koordinaten nur bei Anlagen > 30 kW öffentlich, kleinere nur mit PLZ → nur Großanlagen sind gebäudegenau verortbar. Cache: 1 Tag.

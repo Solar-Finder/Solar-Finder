@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { CircleMarker, GeoJSON, MapContainer, Marker, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import DotLayer from "./DotLayer";
 import {
   BASEMAPS,
   DEFAULT_ZOOM,
@@ -15,15 +16,36 @@ import {
 import { fmtFlex, fmtInt } from "@/lib/format";
 import styles from "./MapView.module.css";
 
+// Punktübersicht: 1 = Anlage vorhanden, 2 = ungenutztes Potenzial; Bestand wird zuletzt (oben) gezeichnet
+const DOT_COLORS = { 1: SOLAR_STATUS.existing.hex, 2: SOLAR_STATUS.potential.hex };
+const DOT_ORDER = [2, 1];
+
+// Zusätzliche Kartenebenen (z-Index): overlayPane = 400, Marker = 600, Tooltips = 650
+const PANES = { buildingDots: 420, plants: 640 };
+
+/** Legt Leaflet-Panes einmalig an – schon beim Rendern, damit Layer sie beim Hinzufügen vorfinden. */
+function EnsurePanes({ panes }) {
+  const map = useMap();
+  useState(() => {
+    for (const [name, z] of Object.entries(panes)) {
+      const pane = map.getPane(name) ?? map.createPane(name);
+      pane.style.zIndex = String(z);
+    }
+  });
+  return null;
+}
+
 /**
  * Leaflet-Karte. Wird nur im Browser geladen (dynamic import, ssr: false).
  * props: basemap, view ('postal'|'buildings'), pvView ('potential'|'existing'),
- *        postalAreas, buildings, installations, selectedPostalCode, labels,
+ *        postalAreas, buildings (Grundrisse, ab Zoom 15), buildingPoints (Punkte, darunter),
+ *        installations, selectedPostalCode, labels,
  *        onViewChange({ bbox, zoom }) – meldet den sichtbaren Ausschnitt (für das Nachladen von Gebäuden)
+ * Ebenen (unten → oben): Karte, PLZ, Gebäude, Großanlagen (eigene Pane, immer im Vordergrund)
  * Legende und Hinweise liegen als Overlays in der Seite (siehe app/karte/page.js).
  */
 export default function MapView({
-  basemap, view, pvView, postalAreas, buildings, installations, selectedPostalCode, labels, onViewChange,
+  basemap, view, pvView, postalAreas, buildings, buildingPoints, installations, selectedPostalCode, labels, onViewChange,
 }) {
   const tiles = BASEMAPS[basemap] ?? BASEMAPS.standard;
 
@@ -44,8 +66,14 @@ export default function MapView({
         <PostalLayer data={postalAreas} pvView={pvView} selected={selectedPostalCode} aerial={basemap === "aerial"} />
       )}
 
+      {/* Eigene Ebenen: Großanlagen liegen immer über Gebäuden und PLZ-Flächen */}
+      <EnsurePanes panes={PANES} />
+
       {view === "buildings" && postalAreas && <PostalOutline data={postalAreas} selected={selectedPostalCode} />}
       {view === "buildings" && buildings && <BuildingLayer data={buildings} labels={labels} />}
+      {view === "buildings" && !buildings && buildingPoints && (
+        <DotLayer points={buildingPoints} colors={DOT_COLORS} order={DOT_ORDER} pane="buildingDots" />
+      )}
       {view === "buildings" && installations && <InstallationLayer data={installations} />}
 
       <ViewReporter onViewChange={onViewChange} />
@@ -166,31 +194,56 @@ function BuildingLayer({ data, labels }) {
   );
 }
 
-/* ---------- Verortete MaStR-Anlagen (> 30 kW) ---------- */
+/* ---------- Verortete MaStR-Anlagen (> 30 kW) ----------
+   Ein Punkt je Gebäude (mehrere Anlagen auf einem Dach werden zusammengefasst),
+   zentriert auf dem zugeordneten Gebäude, in eigener Pane über allen anderen Ebenen. */
 function InstallationLayer({ data }) {
-  return data.features.map((f) => {
-    const p = f.properties;
-    const [lon, lat] = f.geometry.coordinates;
-    const radius = p.power_kwp > 500 ? 9 : p.power_kwp > 100 ? 7 : 5;
+  // In der Stadtübersicht kleinere Punkte, damit die Gebäudefarben sichtbar bleiben
+  const map = useMapEvents({ zoomend: () => setZoom(map.getZoom()) });
+  const [zoom, setZoom] = useState(() => map.getZoom());
+  const scale = zoom < 13 ? 0.55 : zoom < 14.5 ? 0.75 : 1;
+  const groups = useMemo(() => {
+    const byKey = new Map();
+    for (const f of data.features) {
+      const p = f.properties;
+      const key = p.building_id ?? f.id;
+      const [lon, lat] = p.building_point ?? f.geometry.coordinates;
+      const g = byKey.get(key) ?? { key, lat, lon, kwp: 0, units: [] };
+      g.kwp += p.power_kwp;
+      g.units.push({ id: f.id, ...p });
+      byKey.set(key, g);
+    }
+    // kleine zuletzt zeichnen, damit sie bei Überlappung nicht von großen verdeckt werden
+    return [...byKey.values()].sort((a, b) => b.kwp - a.kwp);
+  }, [data]);
+
+  return groups.map((g) => {
+    const radius = (g.kwp > 500 ? 9 : g.kwp > 100 ? 7 : 5.5) * scale;
+    const first = g.units[0];
     return (
       <CircleMarker
-        key={f.id}
-        center={[lat, lon]}
+        key={g.key}
+        pane="plants"
+        center={[g.lat, g.lon]}
         radius={radius}
-        pathOptions={{ color: "#ffffff", weight: 1.5, fillColor: "#c83737", fillOpacity: 0.95 }}
+        pathOptions={{ color: "#ffffff", weight: scale < 1 ? 1.2 : 2, fillColor: "#c83737", fillOpacity: 1 }}
       >
         <Tooltip>
-          <strong>{fmtFlex(p.power_kwp, 1)} kWp</strong>
-          {p.street && (
+          <strong>
+            {fmtFlex(g.kwp, 1)} kWp{g.units.length > 1 ? ` · ${g.units.length} Anlagen` : ""}
+          </strong>
+          {first.street && (
             <div>
-              {p.street} {p.house_number ?? ""}, {p.postal_code}
+              {first.street} {first.house_number ?? ""}, {first.postal_code}
             </div>
           )}
-          <div>
-            {p.plant_type ?? "Solaranlage"}
-            {p.commissioned_on ? ` · seit ${p.commissioned_on.slice(0, 4)}` : ""}
-          </div>
-          <div>MaStR {f.id}</div>
+          {g.units.map((u) => (
+            <div key={u.id}>
+              {g.units.length > 1 ? `${fmtFlex(u.power_kwp, 1)} kWp · ` : ""}
+              {u.plant_type ?? "Solaranlage"}
+              {u.commissioned_on ? ` · seit ${u.commissioned_on.slice(0, 4)}` : ""}
+            </div>
+          ))}
         </Tooltip>
       </CircleMarker>
     );

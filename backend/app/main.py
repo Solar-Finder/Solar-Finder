@@ -1,6 +1,9 @@
 """FastAPI-Backend: liefert Daten im Format von docs/api/openapi.json.
 
-Start:  uvicorn app.main:app --reload --port 8000   (im Ordner backend/)
+Start:  uvicorn app.main:app --reload --reload-dir app --timeout-keep-alive 75 --port 8000   (im Ordner backend/)
+        --timeout-keep-alive muss länger sein als die Leerlaufzeit des Next.js-Proxys,
+        sonst schließt uvicorn (Standard 5 s) Verbindungen, die der Proxy gerade wiederverwendet
+        → ECONNRESET / „Kartendaten konnten nicht geladen werden“.
 Doku:   http://localhost:8000/docs
 
 Beim ersten Start werden MaStR- und OSM-Daten geladen und in backend/data/cache
@@ -15,12 +18,14 @@ from typing import Optional
 
 from fastapi import APIRouter, FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from . import data_service as ds
 from .geo_model import get_model
 from .schemas import (
     BuildingCategory,
     BuildingCollection,
+    BuildingPoints,
     Breakdown,
     ForecastRequest,
     ForecastResponse,
@@ -58,9 +63,11 @@ Diese Datei wird erzeugt mit `python -m app.export_openapi` (im Ordner `backend/
 """
 
 app = FastAPI(title="PV-Prognose Pforzheim", version="0.3.0", description=API_DESCRIPTION, lifespan=lifespan)
+app.add_middleware(GZipMiddleware, minimum_size=2000)  # Gebäude-/Punktlisten sind groß
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    # Das Frontend ruft das Backend direkt aus dem Browser auf
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
@@ -95,6 +102,16 @@ def get_buildings(
     limit: int = Query(ds.MAX_BUILDINGS, ge=1, le=ds.MAX_BUILDINGS),
 ):
     return ds.buildings(bbox, postal_code, category, solar_status, limit)
+
+
+@api.get("/map/building-points", response_model=BuildingPoints, tags=["map"])
+def get_building_points(
+    postal_code: Optional[str] = None,
+    category: Optional[list[BuildingCategory]] = CategoryQ,
+    solar_status: Optional[list[SolarStatus]] = Query(None, description="existing, potential (Standard: beide)"),
+):
+    """Alle Gebäude als Punkte – für die Übersicht bei kleinem Maßstab (ohne Grundrisse)."""
+    return ds.building_points(postal_code, category, solar_status)
 
 
 @api.get("/map/installations", response_model=InstallationCollection, tags=["map"])
