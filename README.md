@@ -8,7 +8,8 @@ Von lubw ([Enegieatls](https://www.energieatlas-bw.de/sonne/gebaeude/karten?acti
   - [Erklärung der Daten](https://rips-metadaten.lubw.de/trefferanzeige?docuuid=5ffae6a3-457a-4fea-a8fc-e1baf29f6b18)
   - [Infos zu Attributen](https://www.energieatlas-bw.de/sonne/gebaeude/grundlagen#198378)
 <br>(Zeilen: 77645, Spalten: 36)
-Spalten Bezeichnung: ['BuildingID', 'RoofID', 'Slope', 'Aspect', 'RoofType', 'Power', 'Eignung', 'Eignung_T', 'Aufstd', 'Area', 'PvArea', 'PvAreaA', 'PvAreaT', 'ErtKwP_K', 'ErtKwP_KA', 'ErtKwhaK', 'ErtKwhaKA', 'PercentMs', 'PercentMsA', 'Schatten', 'SchattenA', 'CO2Savings', 'Yield', 'ModuleCoun', 'Irradiatio', 'Area3D', 'ElevationS', 'GEMEINDE_N', 'LANGNAME', 'KREIS_NR', 'KREIS', 'JAHR', 'HERKUNFT', 'Shape_Leng', 'Shape_Area', 'geometry'] 
+Spalten Bezeichnung: ['BuildingID', 'RoofID', 'Slope', 'Aspect', 'RoofType', 'Power', 'Eignung', 'Eignung_T', 'Aufstd', 'Area', 'PvArea', 'PvAreaA', 'PvAreaT', 'ErtKwP_K', 'ErtKwP_KA', 'ErtKwhaK', 'ErtKwhaKA', 'PercentMs', 'PercentMsA', 'Schatten', 'SchattenA', 'CO2Savings', 'Yield', 'ModuleCoun', 'Irradiatio', 'Area3D', 'ElevationS', 'GEMEINDE_N', 'LANGNAME', 'KREIS_NR', 'KREIS', 'JAHR', 'HERKUNFT', 'Shape_Leng', 'Shape_Area', 'geometry']
+<br>Gebäude Anzahl: 37522
 
 
 ### Allgemein 
