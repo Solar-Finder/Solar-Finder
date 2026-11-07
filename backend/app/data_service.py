@@ -23,7 +23,7 @@ from shapely.geometry import Point, box
 from .geo_model import Building, get_model, is_roof_unit
 import logging
 
-from .sources import costs, power_price
+from .sources import alkis, costs, power_price
 
 log = logging.getLogger(__name__)
 from .schemas import (
@@ -56,9 +56,11 @@ MAX_BUILDINGS = 8000
 
 CATEGORY_LABELS = {
     "residential": "Wohngebäude",
+    "mixed": "Wohn- und Geschäftsgebäude",
     "public": "Öffentliche Gebäude",
     "commercial": "Gewerbe & Industrie",
     "agricultural": "Landwirtschaft",
+    "ancillary": "Nebengebäude",
     "other": "Sonstige / nicht klassifiziert",
 }
 SUITABILITY_LABELS = {
@@ -126,8 +128,14 @@ def meta():
         sources.append({"name": "Strompreis: SMARD Day-Ahead (über InfraNode)",
                         "url": power_price.URL, "retrieved_at": _iso(price["series_date"]),
                         "note": "Bundesnetzagentur | SMARD.de, CC BY 4.0; Großhandelspreis DE/LU, Tageswert"})
+    if m.alkis_available:
+        sources.append({"name": "LGL 3D-Gebäudemodelle LoD2 (ALKIS-Gebäudefunktion)",
+                        "url": "https://www.lgl-bw.de/Produkte/3D-Produkte/3D-Gebaeudemodelle/",
+                        "retrieved_at": _iso(m.retrieved["alkis"]),
+                        "note": f"{alkis.ATTRIBUTION}; Gebäudefunktion zu Kategorien zusammengefasst"})
     if m.osm_available:
-        sources.append({"name": "OpenStreetMap (PLZ-Grenzen, Gebäudeart)", "url": "https://www.openstreetmap.org/copyright",
+        sources.append({"name": "OpenStreetMap (PLZ-Grenzen, Gebäudenamen)" if m.alkis_available
+                        else "OpenStreetMap (PLZ-Grenzen, Gebäudeart)", "url": "https://www.openstreetmap.org/copyright",
                         "retrieved_at": _iso(m.retrieved["osm_buildings"]), "note": "© OpenStreetMap-Mitwirkende, ODbL"})
     return {
         "installed_status": DataStatus.verified,
@@ -292,7 +300,8 @@ def buildings(bbox=None, postal_code=None, category=None, solar_status=None, lim
         feats.append({
             "type": "Feature", "id": b.id, "geometry": b.geojson,
             "properties": {
-                "category": b.category, "building_type": b.building_type, "name": b.name, "osm_id": b.osm_id,
+                "category": b.category, "building_type": b.building_type, "alkis_function": b.alkis_function,
+                "name": b.name, "osm_id": b.osm_id,
                 "footprint_m2": b.footprint_m2, "solar_status": b.solar_status,
                 "installed_kwp": round(b.installed_kwp, 1), "solar_sources": sources,
                 "potential_kwp": round(b.potential_kwp, 1), "potential_status": DataStatus.verified,
@@ -373,9 +382,14 @@ def _breakdown(rows: Iterable, key, labels: dict, status: DataStatus, note=None)
 def building_categories(postal_code=None, category=None, suitability=None):
     m = get_model()
     rows = _filtered_buildings(postal_code, category, suitability=suitability)
-    note = "Gebäudeart laut OpenStreetMap" if m.osm_available else "OpenStreetMap nicht verfügbar – alle Gebäude „Sonstige“"
+    if m.alkis_available:
+        note = "Gebäudefunktion laut ALKIS (LGL, dl-de/by-2-0)"
+    elif m.osm_available:
+        note = "Gebäudeart laut OpenStreetMap"
+    else:
+        note = "Keine Gebäudeart verfügbar – alle Gebäude „Sonstige“"
     return _breakdown(rows, lambda b: b.category, CATEGORY_LABELS,
-                      DataStatus.verified if m.osm_available else DataStatus.pending, note=note)
+                      DataStatus.verified if (m.alkis_available or m.osm_available) else DataStatus.pending, note=note)
 
 
 def roof_types(postal_code=None, category=None, suitability=None):

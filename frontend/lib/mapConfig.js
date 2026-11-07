@@ -3,6 +3,14 @@
 export const PFORZHEIM_CENTER = [48.8915, 8.70];
 export const DEFAULT_ZOOM = 13;
 
+/**
+ * Quellenvermerk für die Datenebenen (Pflicht nach dl-de/by-2-0 für die ALKIS-Gebäudefunktion des LGL;
+ * die Codes werden zu Kategorien zusammengefasst → Hinweis auf Veränderung).
+ */
+export const DATA_ATTRIBUTION =
+  'Gebäudefunktion: Datenquelle: LGL, <a href="https://www.lgl-bw.de" target="_blank" rel="noopener">www.lgl-bw.de</a>, ' +
+  '<a href="https://www.govdata.de/dl-de/by-2-0" target="_blank" rel="noopener">dl-de/by-2-0</a> (zu Kategorien zusammengefasst)';
+
 /** Ab dieser Zoomstufe werden einzelne Gebäude geladen (nach Kartenausschnitt) */
 export const BUILDINGS_MIN_ZOOM = 15;
 
@@ -62,6 +70,17 @@ export const POTENTIAL_KWP_CLASSES = [
   { max: Infinity, label: ">30 kWp", hex: "#b07a00" },
 ];
 export const potentialColor = (kwp) => classFor(POTENTIAL_KWP_CLASSES, kwp ?? 0).hex;
+
+/** Feste Farben der Gebäudekategorien im Diagramm (CD-Farben, Nebengebäude/Sonstige in Grau) */
+export const CATEGORY_COLORS = {
+  residential: "#1e5078",
+  mixed: "#6f93b4",
+  public: "#f0d23c",
+  commercial: "#c83737",
+  agricultural: "#b07a00",
+  ancillary: "#94a3b8",
+  other: "#d1d5db",
+};
 
 /** Farben der Eignungsklassen im Diagramm (auf der Karte wird nur nach Klasse gefiltert) */
 export const SUITABILITY_COLORS = { 1: "#1e5078", 2: "#f0d23c", 3: "#c83737", 6: "#94a3b8" };

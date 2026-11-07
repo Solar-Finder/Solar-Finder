@@ -14,15 +14,17 @@ Dachpotenzials mehr aus der Gebäudegrundfläche.
 |---|---|---|---|
 | **LUBW Solarpotenzial Dachseiten** (Herkunft: „LUBW, Geoplex GIS GmbH“, Jahr 2025, Höhendaten 2016–2023) | `data/8231_Solarpotenzial_Dachseiten_Pforzheim_Stadt/*.shp` (EPSG:25832, 77 645 Dachseiten, 37 522 Gebäude, Stadtkreis Pforzheim 08231) | Gebäude, Dachpotenzial (kWp), Jahresertrag (kWh), CO₂, Eignungsklasse, Dachform | verified |
 | **Marktstammdatenregister** | API, Cache 1 Tag | installierte Anlagen (Leistung, Typ, PLZ; Koordinaten nur > 30 kW) | verified |
-| **OpenStreetMap** | `data/osm/*.json` (im Git). Nach Ablauf (PLZ-Grenzen/Gebäude 30 Tage, Solaranlagen 7 Tage, gemessen am Feld `retrieved_at`) im Hintergrund über Overpass erneuert, danach wird das Modell neu aufgebaut. Ist Overpass nicht erreichbar (10-s-Verbindungstest), bleibt der vorhandene Stand; PLZ-Grenzen ersatzweise über Nominatim + OSM-API (`relation/{id}/full`) | nur, was LUBW nicht enthält: PLZ-Grenzen, Gebäudeart (Kategorie), Name, zusätzlich erfasste Dachanlagen | verified |
+| **OpenStreetMap** | `data/osm/*.json` (im Git). Nach Ablauf (PLZ-Grenzen/Gebäude 30 Tage, Solaranlagen 7 Tage, gemessen am Feld `retrieved_at`) im Hintergrund über Overpass erneuert, danach wird das Modell neu aufgebaut. Ist Overpass nicht erreichbar (10-s-Verbindungstest), bleibt der vorhandene Stand; PLZ-Grenzen ersatzweise über Nominatim + OSM-API (`relation/{id}/full`) | nur, was LUBW nicht enthält: PLZ-Grenzen, Gebäudename, zusätzlich erfasste Dachanlagen; Gebäudeart nur, wo ALKIS nichts liefert | verified |
+| **ALKIS-Gebäudefunktion** (LGL, 3D-Gebäudemodelle LoD2) | [Open GeoData LGL](https://opengeodata.lgl-bw.de), 2-km-Kacheln `LoD2_32_{E}_{N}_2_bw.zip` (CityGML, Attribut `bldg:function`). Einmalig aufbereitet mit `python -m app.refresh alkis` zu `data/alkis/alkis_gebaeudefunktion.json` (LUBW-Gebäude → Funktionscode, im Git). Lizenz **dl-de/by-2-0**, Quellenvermerk „Datenquelle: LGL, www.lgl-bw.de, dl-de/by-2-0“, Codes von uns zu Kategorien zusammengefasst | Gebäudekategorie | verified |
 | **Strompreis** | [InfraNode-API](https://infranode.dev/api/v1/cities/pforzheim/power-price) → Bundesnetzagentur \| SMARD.de (CC BY 4.0), Cache 1 Tag (`data/cache/power_price.json`) | Day-Ahead-Großhandelspreis DE/LU als Tageswert (€/MWh ÷ 10 = ct/kWh); Startwert des Reglers im Rechner und Preis im Gebäude-Steckbrief. Kein Endkundenpreis. Ohne Abruf und Cache: Beispielwert 18 ct/kWh (gekennzeichnet) | verified |
 | **Anschaffungskosten je Gebäude** | `data/Tabelle_Anschaffungskosten_PVprokWp.md` (Nettopreise nach Größe, Stand 2025) | Gebäude-Steckbrief | Annahme laut Tabelle |
 | Wirtschaftlichkeit (Rechner) | Konstanten in `data_service.py` | Investition 900 €/kWp, Stromverbrauch der Stadt | **example** – keine Quelle im Projekt |
 | Laufende Kosten | Vorgabe | 1 % der Anschaffungskosten pro Jahr (Rechner und Steckbrief) | Vorgabe |
 
 **Quellenpriorität:** Was der LUBW-Datensatz enthält, kommt aus LUBW – Gebäudeumriss, Grundfläche,
-Dachform, Potenzial, Ertrag, CO₂, Eignung. OSM-Gebäude dienen nur dazu, einem LUBW-Gebäude Kategorie
-und Name zuzuordnen; ihr Umriss und `roof:shape` werden nicht übernommen.
+Dachform, Potenzial, Ertrag, CO₂, Eignung. Die Gebäudekategorie kommt aus der amtlichen
+ALKIS-Gebäudefunktion (LGL); nur wo keine vorliegt, aus OSM. OSM liefert sonst nur Gebäudenamen,
+PLZ-Grenzen und erfasste Anlagen; Umriss und `roof:shape` aus OSM werden nicht übernommen.
 
 ## 2. LUBW-Shapefile: verwendete Spalten
 
@@ -73,7 +75,8 @@ Geprüft über alle 77 645 Zeilen (Skript-Ergebnisse, keine Annahmen):
 LUBW-Dachseiten ──(repariert, nach BuildingID vereinigt)──► Gebäude (37 522)
                                                             │ Mittelpunkt (representative_point)
 OSM-PLZ-Grenzen ────────── Punkt-in-Polygon ───────────────►│ postal_code
-OSM-Gebäude ────────────── Punkt-in-Polygon ───────────────►│ category, building_type, name
+OSM-Gebäude ────────────── Punkt-in-Polygon ───────────────►│ name, building_type (category nur als Ersatz)
+ALKIS-Grundflächen (LoD2) ─ Punkt-in-Polygon (vorab) ──────►│ alkis_function → category
 MaStR-Anlagen (Koord.) ─── im Gebäude / ≤ 25 m ────────────►│ installed_kwp, mastr_ids
 OSM-Solaranlagen ───────── im Gebäude / ≤ 25 m ────────────►│ osm_solar
 ```
@@ -88,7 +91,19 @@ Je Gebäude (nur Dachseiten mit Eignung ∈ {1, 2, 3} = „PV-geeignet“):
 | `suitability` | beste vorkommende Klasse (Rangfolge 1 › 2 › 3 › 6 › 8 › 0) |
 | `roof_type` | `flat` (nur Flachdach), `pitched` (nur Spitzdach), `mixed` (beides), `unknown` |
 | `footprint_m2` | Fläche der vereinigten Dachseiten (EPSG:25832) |
-| `category` | aus OSM-Tags (`building`, `amenity`, `shop`, …) → residential/public/commercial/agricultural/other; ohne OSM-Treffer `other` |
+| `category` | aus der ALKIS-Gebäudefunktion (siehe Tabelle unten); ohne ALKIS-Treffer aus OSM-Tags (`building`, `amenity`, `shop`, …); sonst `other` |
+
+**ALKIS-Gebäudefunktion → Kategorie** (`alkis.category_for`, Codes laut AdV-Objektartenkatalog):
+
+| Kategorie | ALKIS-Codes |
+|---|---|
+| Wohngebäude (`residential`) | 31001_1000–1312 (Wohnhaus, Wohnheime, Ferien-/Wochenendhaus …), außer den gemischten und landwirtschaftlichen Codes |
+| Wohn- und Geschäftsgebäude (`mixed`) | 31001_1100, 1120–1123, 1130, 1131 (Wohnen mit Handel/Büro/Gewerbe), 2310, 2320 (Handel bzw. Gewerbe mit Wohnen) |
+| Öffentliche Gebäude (`public`) | 31001_3000–3299 (Verwaltung, Schule, Kultur, Kirche, Gesundheit, Soziales, Sicherheit, Sport …) |
+| Gewerbe & Industrie (`commercial`) | 31001_2000–2699 (Handel, Büro, Hotel, Gaststätte, Fabrik, Werkstatt, Lager, Verkehr, Ver-/Entsorgung), außer Nebengebäuden und Parkbauten |
+| Landwirtschaft (`agricultural`) | 31001_1220–1222, 2700–2799 |
+| Nebengebäude (`ancillary`) | 31001_1313 Gartenhaus, 2460/2463/2464 Garage/Fahrzeughalle, 2523 Umformer, 2612 Toilette, 2723 Schuppen; 51009_1610/1611 Überdachung/Carport |
+| Sonstige (`other`) | Parkhaus/Parkdeck/Tiefgarage (2461, 2462, 2465), Brücken und andere Bauwerke, 9998/9999 |
 | `solar_status` | `existing`: MaStR-Anlage zugeordnet oder in OSM erfasst · `potential`: `potential_kwp > 0` · sonst `none` |
 
 ## 4. Kennzahlen „Aktueller Stand“
@@ -163,4 +178,4 @@ zu 100 % genutzt.
 - MaStR-Anlagen ≤ 30 kW haben keine Koordinaten. Sie fließen in die Summen je PLZ ein, auf der
   Karte erscheinen aber nur Großanlagen und in OSM erfasste Anlagen als „Bestand“.
 - Das LUBW-Potenzial ist das technische Gesamtpotenzial. Es zieht bestehende Anlagen nicht ab.
-- Gebäude ohne OSM-Gegenstück erhalten die Kategorie `other`.
+- Gebäude ohne ALKIS- und ohne OSM-Gegenstück erhalten die Kategorie `other`.

@@ -10,10 +10,12 @@ from pydantic import BaseModel, Field
 
 class BuildingCategory(str, Enum):
     residential = "residential"    # Wohngebäude
+    mixed = "mixed"                # Wohn- und Geschäftsgebäude
     public = "public"              # Öffentliche Gebäude
     commercial = "commercial"      # Gewerbe & Industrie
     agricultural = "agricultural"  # Landwirtschaft
-    other = "other"                # Sonstige / in OSM nicht klassifiziert
+    ancillary = "ancillary"        # Nebengebäude (Garagen, Schuppen, Überdachungen …)
+    other = "other"                # Sonstige / nicht klassifiziert
 
 
 class SuitabilityClass(IntEnum):
@@ -168,6 +170,7 @@ class BuildingProfile(BaseModel):
 class BuildingProps(BaseModel):
     category: BuildingCategory          # aus OSM; ohne OSM-Treffer "other"
     building_type: Optional[str] = None # OSM building=*
+    alkis_function: Optional[str] = None  # ALKIS-Gebäudefunktion, z. B. "31001_1010" (LGL LoD2)
     name: Optional[str] = None
     osm_id: Optional[str] = None
     footprint_m2: float                 # Fläche der vereinigten LUBW-Dachseiten

@@ -3,7 +3,8 @@
 Ablauf beim ersten Zugriff (danach im Speicher), Details in docs/datenmodell.md:
 1. LUBW-Dachseiten → Gebäude mit Potenzial (kWp, kWh/a, CO₂), Eignungsklasse, Dachform
 2. Gebäudemittelpunkt → PLZ-Gebiet (OSM)
-3. Gebäudemittelpunkt → OSM-Gebäude → Kategorie, Gebäudeart, Name
+3. Gebäudemittelpunkt → OSM-Gebäude → Name (und Kategorie, falls keine ALKIS-Angabe)
+3b. Kategorie aus der amtlichen ALKIS-Gebäudefunktion (LGL LoD2, data/alkis/) – hat Vorrang vor OSM
 4. MaStR-Anlagen mit Koordinaten (nur > 30 kW öffentlich) und in OSM erfasste
    Dachanlagen → Gebäude (enthaltend oder nächstes im Umkreis)
 
@@ -26,7 +27,7 @@ from typing import Optional
 from shapely import STRtree
 from shapely.geometry import Point, mapping, shape
 
-from .sources import lubw, mastr, osm
+from .sources import alkis, lubw, mastr, osm
 from .sources.cache import on_background_refresh
 
 log = logging.getLogger(__name__)
@@ -86,6 +87,7 @@ class Building:
     suitable_roof_faces: int
     category: str = "other"
     building_type: Optional[str] = None  # OSM building=*
+    alkis_function: Optional[str] = None  # ALKIS-Gebäudefunktion (LGL LoD2)
     osm_id: Optional[str] = None
     name: Optional[str] = None
     postal_code: Optional[str] = None
@@ -109,6 +111,7 @@ class Model:
     retrieved: dict
     lubw: dict           # Metadaten + Gesamtsummen des LUBW-Datensatzes
     osm_available: bool
+    alkis_available: bool
     areas: list          # [{postal_code, name, geom, geometry}]
     buildings: list      # [Building]
     by_id: dict
@@ -206,6 +209,15 @@ def _build() -> Model:
             b.osm_id, b.category = osm_b[j][1]["id"], _category(tags)
             b.building_type, b.name = tags.get("building"), tags.get("name")
 
+    # 3b. Amtliche Gebäudefunktion (ALKIS) – ersetzt die OSM-Kategorie, wo vorhanden
+    alkis_data = alkis.load()
+    if alkis_data:
+        funcs = alkis_data["functions"]
+        for b in buildings:
+            code = funcs.get(b.id)
+            if code:
+                b.alkis_function, b.category = code, alkis.category_for(code)
+
     tree = STRtree([b.geom for b in buildings])
     radius_deg = MATCH_RADIUS_M / _MY
 
@@ -257,9 +269,10 @@ def _build() -> Model:
         st["buildings_with_solar"] += b.has_solar
         st["buildings_potential"] += b.solar_status == "potential"
 
-    log.info("Modell: %d Gebäude, davon %d mit PLZ, %d mit OSM-Gebäude, %d mit Anlage",
+    log.info("Modell: %d Gebäude, davon %d mit PLZ, %d mit OSM-Gebäude, %d mit ALKIS-Funktion, %d mit Anlage",
              len(buildings), sum(1 for b in buildings if b.postal_code),
-             sum(1 for b in buildings if b.osm_id), sum(1 for b in buildings if b.has_solar))
+             sum(1 for b in buildings if b.osm_id), sum(1 for b in buildings if b.alkis_function),
+             sum(1 for b in buildings if b.has_solar))
 
     return Model(
         retrieved={
@@ -268,9 +281,11 @@ def _build() -> Model:
             "osm_buildings": (b_data or {}).get("retrieved_at"),
             "osm_postal_areas": (a_data or {}).get("retrieved_at"),
             "osm_solar": (s_data or {}).get("retrieved_at"),
+            "alkis": (alkis_data or {}).get("retrieved_at"),
         },
         lubw={k: roof_data[k] for k in ("data_year", "origin", "totals")},
         osm_available=bool(a_data and b_data),
+        alkis_available=bool(alkis_data),
         areas=areas, buildings=buildings, by_id={b.id: b for b in buildings}, tree=tree,
         units=units, plz_stats=dict(stats),
     )

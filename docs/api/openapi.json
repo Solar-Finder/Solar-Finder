@@ -832,9 +832,11 @@
         "type": "string",
         "enum": [
           "residential",
+          "mixed",
           "public",
           "commercial",
           "agricultural",
+          "ancillary",
           "other"
         ],
         "title": "BuildingCategory"
@@ -1084,6 +1086,17 @@
               }
             ],
             "title": "Building Type"
+          },
+          "alkis_function": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alkis Function"
           },
           "name": {
             "anyOf": [

@@ -1,11 +1,12 @@
 """Lädt externe Daten neu (MaStR → data/cache/, OSM → data/osm/).
 
-Aufruf (im Ordner backend/):  python -m app.refresh [mastr|osm|preis]
+Aufruf (im Ordner backend/):  python -m app.refresh [mastr|osm|preis|alkis]
+(alkis lädt die LoD2-Kacheln für Pforzheim, einige hundert MB, und läuft nur auf ausdrücklichen Aufruf)
 """
 import logging
 import sys
 
-from .sources import mastr, osm, power_price
+from .sources import alkis, mastr, osm, power_price
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
@@ -18,4 +19,7 @@ if what in ("all", "osm"):
     print("Gebäude:", len(osm.load_buildings(force=True)["buildings"]))
 if what in ("all", "preis"):
     print("Strompreis (ct/kWh):", power_price.load(force=True)["ct_per_kwh"])
+if what == "alkis":  # nicht in "all": großer Download, Daten ändern sich selten
+    d = alkis.build()
+    print("ALKIS-Gebäudefunktion:", d["matched"], "von", d["lubw_buildings"], "LUBW-Gebäuden zugeordnet")
 print("Fertig – Backend neu starten, damit die Daten übernommen werden.")

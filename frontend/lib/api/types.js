@@ -4,7 +4,7 @@
  */
 
 /** @typedef {'verified'|'estimated'|'example'|'pending'} DataStatus */
-/** @typedef {'residential'|'public'|'commercial'|'agricultural'|'other'} BuildingCategory */
+/** @typedef {'residential'|'mixed'|'public'|'commercial'|'agricultural'|'ancillary'|'other'} BuildingCategory */
 /** @typedef {1|2|3|6|8|0} SuitabilityClass  LUBW-Eignungsklasse (1–3 PV-geeignet) */
 /** @typedef {'flat'|'pitched'|'mixed'|'unknown'} RoofType */
 /** @typedef {'potential'|'existing'} PvView */

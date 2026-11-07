@@ -6,6 +6,7 @@ import { CircleMarker, GeoJSON, MapContainer, Marker, TileLayer, Tooltip, useMap
 import DotLayer from "./DotLayer";
 import {
   BASEMAPS,
+  DATA_ATTRIBUTION,
   DEFAULT_ZOOM,
   INSTALLED_CLASSES,
   PFORZHEIM_CENTER,
@@ -101,7 +102,12 @@ export default function MapView({
       scrollWheelZoom
       preferCanvas
     >
-      <TileLayer key={basemap} url={tiles.url} attribution={tiles.attribution} maxZoom={tiles.maxZoom} />
+      <TileLayer
+        key={basemap}
+        url={tiles.url}
+        attribution={`${tiles.attribution} | ${DATA_ATTRIBUTION}`}
+        maxZoom={tiles.maxZoom}
+      />
 
       {view === "postal" && postalAreas && (
         <PostalLayer data={postalAreas} pvView={pvView} selected={selectedPostalCode} aerial={basemap === "aerial"} />

@@ -9,6 +9,7 @@ import {
   BUILDINGS_MIN_ZOOM,
   INSTALLED_CLASSES,
   SOLAR_STATUS,
+  CATEGORY_COLORS,
   POTENTIAL_KWP_CLASSES,
   SUITABILITY_COLORS,
   UTILIZATION_CLASSES,
@@ -302,6 +303,7 @@ export default function KartePage() {
         <BreakdownCard
           title="Gebäudekategorien"
           data={stats.cat}
+          colorFor={(item) => CATEGORY_COLORS[item.key]}
           summaryKey={filters.category || null}
           totalPotentialMwp={status?.potential_power_mwp}
           areaLabel={postalLabel ?? "Stadt Pforzheim"}
