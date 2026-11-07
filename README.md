@@ -14,7 +14,23 @@ Spalten Bezeichnung: ['BuildingID', 'RoofID', 'Slope', 'Aspect', 'RoofType', 'Po
 
  Rechnungen:
  - "Gewinn nach x Jahren :" target_kwp = potential_kwp * req.target_utilization_pct / 100
- - 
+ - "Erforderliche Investition" Erforderliche Investition = zusätzliche Leistung in kWp × 900 €/kWp
+
+
+Angenommene Komplettpreise für Photovoltaikanlagen (Stand 2025)
+
+|Leistung [kWp]|Nettopreis [€/kWp]|
+|---|---|
+|bis 3,5|1.530|
+|bis 5|1.440|
+|bis 7,5|1.260|
+|bis 9|1.170|
+|bis 20|1.080|
+|bis 30|990|
+|bis 50|900|
+|bis 100|855|
+|bis 200|810|
+
   
     
 
