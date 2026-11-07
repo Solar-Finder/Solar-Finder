@@ -246,6 +246,98 @@
         }
       }
     },
+    "/api/v1/map/building-points": {
+      "get": {
+        "tags": [
+          "map"
+        ],
+        "summary": "Get Building Points",
+        "description": "Alle Gebäude als Punkte – für die Übersicht bei kleinem Maßstab (ohne Grundrisse).",
+        "operationId": "get_building_points_api_v1_map_building_points_get",
+        "parameters": [
+          {
+            "name": "postal_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Postal Code"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BuildingCategory"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Gebäudekategorie(n), mehrfach erlaubt",
+              "title": "Category"
+            },
+            "description": "Gebäudekategorie(n), mehrfach erlaubt"
+          },
+          {
+            "name": "solar_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SolarStatus"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "existing, potential (Standard: beide)",
+              "title": "Solar Status"
+            },
+            "description": "existing, potential (Standard: beide)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildingPoints"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/map/installations": {
       "get": {
         "tags": [
@@ -779,6 +871,44 @@
         ],
         "title": "BuildingFeature"
       },
+      "BuildingPoints": {
+        "properties": {
+          "status_codes": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SolarStatus"
+            },
+            "type": "object",
+            "title": "Status Codes"
+          },
+          "points": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array",
+              "maxItems": 3,
+              "minItems": 3
+            },
+            "type": "array",
+            "title": "Points"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status_codes",
+          "points"
+        ],
+        "title": "BuildingPoints",
+        "description": "Kompakte Übersicht aller Gebäude: [[lon, lat, status], …] (1 = Anlage, 2 = Potenzial)."
+      },
       "BuildingProps": {
         "properties": {
           "category": {
@@ -1279,6 +1409,27 @@
               }
             ],
             "title": "Building Id"
+          },
+          "building_point": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Building Point"
           }
         },
         "type": "object",

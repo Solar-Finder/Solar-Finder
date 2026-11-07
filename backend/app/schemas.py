@@ -125,6 +125,7 @@ class InstallationProps(BaseModel):
     plant_type: Optional[str] = None
     building_use: Optional[str] = None
     building_id: Optional[str] = None
+    building_point: Optional[tuple[float, float]] = None  # Mitte des zugeordneten Gebäudes (lon, lat)
 
 
 class InstallationFeature(BaseModel):
@@ -166,6 +167,12 @@ class BuildingCollection(BaseModel):
     type: Literal["FeatureCollection"] = "FeatureCollection"
     features: list[BuildingFeature]
     truncated: bool = False  # mehr Treffer als `limit`
+
+
+class BuildingPoints(BaseModel):
+    """Kompakte Übersicht aller Gebäude: [[lon, lat, status], …] (1 = Anlage, 2 = Potenzial)."""
+    status_codes: dict[str, SolarStatus]
+    points: list[tuple[float, float, int]]
 
 
 class PostalAreaProps(BaseModel):

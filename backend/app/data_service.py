@@ -199,14 +199,37 @@ def installations(bbox=None, postal_code=None, max_power_kwp: Optional[float] = 
             continue
         if max_power_kwp is not None and u["power_kwp"] > max_power_kwp:
             continue
+        b = m.by_id.get(u.get("building_id"))
         feats.append({
             "type": "Feature", "id": u["id"],
+            # Geometrie = gemeldeter MaStR-Standort; building_point = Mitte des zugeordneten Gebäudes
             "geometry": {"type": "Point", "coordinates": (u["lon"], u["lat"])},
-            "properties": {k: u.get(k) for k in ("power_kwp", "commissioned_on", "postal_code", "street",
-                                                 "house_number", "plant_type", "building_use", "building_id")},
+            "properties": {
+                **{k: u.get(k) for k in ("power_kwp", "commissioned_on", "postal_code", "street",
+                                         "house_number", "plant_type", "building_use", "building_id")},
+                "building_point": b.center if b else None,
+            },
         })
     return {"type": "FeatureCollection", "features": feats,
             "unlocated_count": sum(1 for u in units if not u.get("lat"))}
+
+
+STATUS_CODE = {"existing": 1, "potential": 2, "none": 0}
+
+
+def building_points(postal_code=None, category=None, solar_status=None):
+    """Kompakte Punktliste aller Gebäude für die Übersicht bei kleinem Maßstab.
+
+    Format: [[lon, lat, status], …] mit status 1 = Anlage vorhanden, 2 = ungenutztes Potenzial
+    (Gebäude ohne nennenswertes Potenzial werden weggelassen).
+    """
+    wanted = set(solar_status or ["existing", "potential"])
+    pts = [
+        [b.center[0], b.center[1], STATUS_CODE[b.solar_status]]
+        for b in _filtered_buildings(postal_code, category)
+        if b.solar_status in wanted
+    ]
+    return {"status_codes": {"1": "existing", "2": "potential"}, "points": pts}
 
 
 def _pt(u):

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Donut from "@/components/Donut";
-import { getBuildings, getInstallations, getMeta, getPostalAreas, getStats, getStatus } from "@/lib/api/client";
+import { getBuildingPoints, getBuildings, getInstallations, getMeta, getPostalAreas, getStats, getStatus } from "@/lib/api/client";
 import {
   BUILDINGS_MIN_ZOOM,
   INSTALLED_CLASSES,
@@ -38,6 +38,7 @@ export default function KartePage() {
   const [viewport, setViewport] = useState(null); // { bbox, zoom }
   const [postalAreas, setPostalAreas] = useState(null);
   const [buildings, setBuildings] = useState(null);
+  const [buildingPoints, setBuildingPoints] = useState(null);
   const [truncated, setTruncated] = useState(false);
   const [installations, setInstallations] = useState(null);
   const [status, setStatus] = useState(null);
@@ -45,6 +46,8 @@ export default function KartePage() {
   const [error, setError] = useState(null);
 
   const fail = () => setError("Die Kartendaten konnten nicht geladen werden. Läuft das Backend auf Port 8000?");
+  // Nach erfolgreichem Nachladen die Meldung wieder ausblenden (sonst bleibt ein einzelner Aussetzer stehen)
+  const ok = () => setError(null);
 
   useEffect(() => {
     Promise.all([getMeta(), getPostalAreas()])
@@ -52,6 +55,7 @@ export default function KartePage() {
         setMeta(m);
         setFilters(initialFilters(m));
         setPostalAreas(areas);
+        ok();
       })
       .catch(fail);
   }, []);
@@ -89,6 +93,7 @@ export default function KartePage() {
         .then((fc) => {
           setBuildings(fc);
           setTruncated(fc.truncated);
+          ok();
         })
         .catch((e) => e.name !== "AbortError" && fail());
     }, VIEWPORT_DEBOUNCE_MS);
@@ -98,12 +103,35 @@ export default function KartePage() {
     };
   }, [filters.view, filters.pv_view, zoomedIn, viewport, apiFilters]);
 
+  // Übersicht aller Gebäude als Punkte (sichtbar unterhalb von Zoom 15, ohne Nachladen beim Verschieben)
+  useEffect(() => {
+    if (filters.view !== "buildings") return;
+    const ctrl = new AbortController();
+    getBuildingPoints(
+      {
+        postal_code: apiFilters.postal_code,
+        category: apiFilters.category,
+        solar_status: filters.pv_view === "existing" ? ["existing"] : undefined,
+      },
+      { signal: ctrl.signal }
+    )
+      .then((r) => {
+        setBuildingPoints(r.points);
+        ok();
+      })
+      .catch((e) => e.name !== "AbortError" && fail());
+    return () => ctrl.abort();
+  }, [filters.view, filters.pv_view, apiFilters.postal_code, apiFilters.category]);
+
   // Verortete Großanlagen (MaStR, > 30 kW)
   useEffect(() => {
     if (filters.view !== "buildings") return;
     const ctrl = new AbortController();
     getInstallations({ postal_code: apiFilters.postal_code }, { signal: ctrl.signal })
-      .then(setInstallations)
+      .then((fc) => {
+        setInstallations(fc);
+        ok();
+      })
       .catch((e) => e.name !== "AbortError" && fail());
     return () => ctrl.abort();
   }, [filters.view, apiFilters.postal_code]);
@@ -121,6 +149,7 @@ export default function KartePage() {
       .then(([st, roof, cat, suit]) => {
         setStatus(st);
         setStats({ roof, cat, suit });
+        ok();
       })
       .catch((e) => e.name !== "AbortError" && fail());
     return () => ctrl.abort();
@@ -178,6 +207,7 @@ export default function KartePage() {
             pvView={filters.pv_view}
             postalAreas={postalAreas}
             buildings={buildings}
+            buildingPoints={buildingPoints}
             installations={filters.view === "buildings" ? installations : null}
             selectedPostalCode={filters.postal_code}
             labels={labels}
@@ -194,7 +224,7 @@ export default function KartePage() {
 
           {filters.view === "buildings" && !zoomedIn && (
             <div className={s.mapHint} role="status">
-              Zum Anzeigen der einzelnen Gebäude näher heranzoomen
+              Jeder Punkt ist ein Gebäude · für Grundrisse und Details heranzoomen
             </div>
           )}
           {filters.view === "buildings" && zoomedIn && truncated && (

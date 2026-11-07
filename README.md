@@ -80,13 +80,13 @@ Design:
 ### Lokal starten
 ```bash
 cd backend && python -m venv .venv && .venv/Scripts/pip install -r requirements.txt
-.venv/Scripts/python -m uvicorn app.main:app --reload --reload-dir app --port 8000
+.venv/Scripts/python -m uvicorn app.main:app --reload --reload-dir app --timeout-keep-alive 75 --port 8000
 ```
 Beim ersten Start lädt das Backend MaStR- und OSM-Daten (ca. 5 Minuten) nach `backend/data/cache/` (nicht im Git). Neu laden: `.venv/Scripts/python -m app.refresh`.
 ```bash
 cd frontend && npm install && npm run dev
 ```
-Danach http://localhost:3000 öffnen (das Frontend leitet `/api/*` an das Backend auf Port 8000 weiter).
+Danach http://localhost:3000 öffnen. Der Browser ruft das Backend direkt unter Port 8000 auf (CORS); eine andere Adresse lässt sich mit `NEXT_PUBLIC_API_URL` setzen. Bewusst kein Next.js-Rewrite-Proxy: unter Windows kamen größere Antworten darüber abgeschnitten an.
 
 ### Data
 - **Marktstammdatenregister** (API): alle PV-Anlagen „In Betrieb“ in Pforzheim. Adresse/Koordinaten nur bei Anlagen > 30 kW öffentlich, kleinere nur mit PLZ → nur Großanlagen sind gebäudegenau verortbar. Cache: 1 Tag.
