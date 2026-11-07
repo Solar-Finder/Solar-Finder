@@ -16,8 +16,8 @@
 /**
  * @typedef {Object} Meta
  * @property {DataStatus} installed_status   MaStR → verified
- * @property {DataStatus} potential_status   estimated bis LUBW-Daten vorliegen
- * @property {DataStatus} suitability_status pending bis LUBW-Daten vorliegen
+ * @property {DataStatus} potential_status LUBW-Dachseiten oder OSM-Fallback
+ * @property {DataStatus} suitability_status LUBW-Eignungsklassen
  * @property {LabeledOption[]} categories
  * @property {LabeledOption[]} suitability_classes
  * @property {LabeledOption[]} roof_types
@@ -77,6 +77,7 @@
  * @property {number} installed_kwp   Summe zugeordneter MaStR-Anlagen
  * @property {('mastr'|'osm')[]} solar_sources
  * @property {number} potential_kwp
+ * @property {number} potential_kwh_per_year
  * @property {DataStatus} potential_status
  * @property {SuitabilityClass|null} [suitability]
  * @property {RoofType|null} [roof_type]

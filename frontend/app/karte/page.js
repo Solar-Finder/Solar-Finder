@@ -86,6 +86,7 @@ export default function KartePage() {
           bbox: viewport.bbox,
           postal_code: apiFilters.postal_code,
           category: apiFilters.category,
+          suitability: apiFilters.suitability,
           solar_status: filters.pv_view === "existing" ? ["existing"] : undefined,
         },
         { signal: ctrl.signal }

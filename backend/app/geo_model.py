@@ -27,6 +27,7 @@ MIN_FOOTPRINT_M2 = 20
 MIN_POTENTIAL_KWP = 3                  # darunter gilt ein Dach nicht als „ungenutztes Potenzial“
 
 MATCH_RADIUS_M = 25                    # max. Abstand Anlage ↔ Gebäude, falls nicht innerhalb
+SUPPORTED_SUITABILITY_CLASSES = {1, 2, 3, 6}
 
 # Gebäude ohne PV-Eignung (Garagen, Schuppen, Gewächshäuser …)
 NO_POTENTIAL_TYPES = {
@@ -154,8 +155,9 @@ def _build() -> Model:
         suitability = []
         for r in roofs:
             try:
-                if r.get("Eignung") is not None:
-                    suitability.append(int(r["Eignung"]))
+                value = r.get("Eignung")
+                if value is not None and int(value) in SUPPORTED_SUITABILITY_CLASSES:
+                    suitability.append(int(value))
             except (TypeError, ValueError):
                 continue
         usable_roofs = [r for r in roofs if r.get("Eignung") not in (6, "6")]

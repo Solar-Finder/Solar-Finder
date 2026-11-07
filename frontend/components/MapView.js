@@ -184,7 +184,13 @@ function BuildingLayer({ data, labels }) {
               : "Anlage in OpenStreetMap erfasst"
             : null,
           p.potential_kwp > 0
-            ? `Dachpotenzial ca. ${fmtFlex(p.potential_kwp, 0)} kWp${p.potential_status === "estimated" ? " (geschätzt)" : ""}`
+            ? [
+                `Dachpotenzial ca. ${fmtFlex(p.potential_kwp, 0)} kWp`,
+                p.potential_kwh_per_year > 0 ? `Jahresertrag ca. ${fmtFlex(p.potential_kwh_per_year, 0)} kWh` : null,
+                p.roof_type ? `Dachtyp ${p.roof_type}` : null,
+                p.suitability != null ? `Eignungsklasse ${p.suitability}` : null,
+                p.potential_status === "estimated" ? "(geschätzt)" : null,
+              ].filter(Boolean).join(" · ")
             : null,
           `Grundfläche ${fmtInt(p.footprint_m2)} m² · PLZ ${p.postal_code ?? "–"}`,
         ].filter(Boolean).map(escapeHtml);
