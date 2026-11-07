@@ -65,42 +65,6 @@
   min-height: 292px;
 }
 
-.apiValue {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: -6px;
-}
-
-.apiValueText {
-  flex: 1;
-  font-size: 11px;
-  color: var(--text-subtle);
-}
-
-.apiReset {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface-muted);
-  color: var(--text-subtle);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.apiReset:hover:not(:disabled) {
-  color: var(--text-muted);
-  border-color: var(--border-strong);
-}
-
-.apiReset:disabled {
-  cursor: default;
-}
-
 .forecast {
   display: flex;
   flex-direction: column;

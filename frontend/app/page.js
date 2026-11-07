@@ -108,7 +108,7 @@ function Stat({ label, value, highlight }) {
 function Configuration({ meta, config, forecast, set, onReset }) {
   if (!meta || !config) return <section className={`card ${s.config}`} aria-busy="true" />;
   const sl = meta.sliders;
-  const apiPrice = meta.electricity_price.value_ct_per_kwh;
+  const price = meta.electricity_price;
   const f = forecast;
 
   return (
@@ -144,29 +144,33 @@ function Configuration({ meta, config, forecast, set, onReset }) {
 
       <RangeSlider
         label="Strompreis · manuell anpassbar"
+        info={
+          <InfoTip label="Strompreis">
+            <Formula>Ausgangswert: {fmtFlex(price.value_ct_per_kwh, 1)} ct/kWh</Formula>
+            {price.is_example ? (
+              <Assumption>Beispielwert – der Strompreis konnte nicht abgerufen werden</Assumption>
+            ) : (
+              <>
+                <Assumption>Quelle: {price.source}, Lizenz CC BY 4.0</Assumption>
+                <Assumption>
+                  Abruf über die InfraNode-API (infranode.dev/api/v1/cities/pforzheim/power-price), einmal täglich
+                  aktualisiert
+                </Assumption>
+              </>
+            )}
+            <Meaning>
+              Day-Ahead-Großhandelspreis der Gebotszone DE/LU als Tageswert, kein Endkundenpreis. Der Regler startet mit
+              diesem Wert und lässt sich frei anpassen; „Zurücksetzen“ stellt ihn wieder her. In der Rechnung steigt der
+              Preis ab dem 2. Jahr um 0,6 ct/kWh pro Jahr.
+            </Meaning>
+          </InfoTip>
+        }
         value={config.electricity_price_ct_per_kwh}
         {...pick(sl.electricity_price_ct_per_kwh)}
         onChange={set("electricity_price_ct_per_kwh")}
         display={`${fmtFlex(config.electricity_price_ct_per_kwh, 1)} ct/kWh`}
         rangeLabels={[`${sl.electricity_price_ct_per_kwh.min} ct`, `${sl.electricity_price_ct_per_kwh.max} ct`]}
-      >
-        <div className={s.apiValue}>
-          <img src="/icons/database.svg" width={14} height={14} alt="" />
-          <span className={s.apiValueText}>
-            API-Ausgangswert: {fmtFlex(apiPrice, 1)} ct/kWh
-            {meta.electricity_price.is_example ? " (Beispiel)" : ` (${meta.electricity_price.source})`}
-          </span>
-          <button
-            type="button"
-            className={s.apiReset}
-            onClick={() => set("electricity_price_ct_per_kwh")(apiPrice)}
-            disabled={config.electricity_price_ct_per_kwh === apiPrice}
-          >
-            <img src="/icons/rotate-ccw.svg" width={12} height={12} alt="" />
-            Auf API-Wert
-          </button>
-        </div>
-      </RangeSlider>
+      />
     </section>
   );
 }

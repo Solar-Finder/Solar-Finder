@@ -11,6 +11,11 @@
   gap: 12px;
 }
 
+.labelWrap {
+  display: inline-flex;
+  align-items: center;
+}
+
 .label {
   font-size: 14px;
   font-weight: 500;
