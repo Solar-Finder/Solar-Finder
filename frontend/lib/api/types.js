@@ -5,8 +5,8 @@
 
 /** @typedef {'verified'|'estimated'|'example'|'pending'} DataStatus */
 /** @typedef {'residential'|'public'|'commercial'|'agricultural'|'other'} BuildingCategory */
-/** @typedef {1|2|3|6} SuitabilityClass  folgt mit den LUBW-Daten */
-/** @typedef {'gable'|'flat'|'shed'|'other'} RoofType */
+/** @typedef {1|2|3|6|8|0} SuitabilityClass  LUBW-Eignungsklasse (1–3 PV-geeignet) */
+/** @typedef {'flat'|'pitched'|'mixed'|'unknown'} RoofType */
 /** @typedef {'potential'|'existing'} PvView */
 /** @typedef {'existing'|'potential'|'none'} SolarStatus */
 
@@ -16,8 +16,8 @@
 /**
  * @typedef {Object} Meta
  * @property {DataStatus} installed_status   MaStR → verified
- * @property {DataStatus} potential_status   estimated bis LUBW-Daten vorliegen
- * @property {DataStatus} suitability_status pending bis LUBW-Daten vorliegen
+ * @property {DataStatus} potential_status   verified (LUBW)
+ * @property {DataStatus} suitability_status verified (LUBW)
  * @property {LabeledOption[]} categories
  * @property {LabeledOption[]} suitability_classes
  * @property {LabeledOption[]} roof_types

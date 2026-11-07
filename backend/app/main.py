@@ -6,7 +6,7 @@ Start:  uvicorn app.main:app --reload --reload-dir app --timeout-keep-alive 75 -
         → ECONNRESET / „Kartendaten konnten nicht geladen werden“.
 Doku:   http://localhost:8000/docs
 
-Beim ersten Start werden MaStR- und OSM-Daten geladen und in backend/data/cache
+Beim ersten Start werden MaStR- und OSM-Daten geladen und in data/cache
 abgelegt (dauert einige Minuten); danach kommen sie aus dem Cache.
 Neu laden:  python -m app.refresh
 """
@@ -51,8 +51,9 @@ Vertrag zwischen Python-Backend (FastAPI) und JavaScript-Frontend (Next.js).
 **Datenquellen**
 - PV-Anlagen: Marktstammdatenregister (alle Einheiten „In Betrieb“, Gemeinde Pforzheim).
   Koordinaten/Adresse sind nur bei Anlagen > 30 kW öffentlich; kleinere Anlagen nur je PLZ.
-- PLZ-Grenzen, Gebäudegrundrisse, zusätzlich erfasste Dachanlagen: OpenStreetMap (© OSM-Mitwirkende, ODbL).
-- Dachpotenzial: lokale LUBW-Dachseiten-Shapefile, mit OSM-Grundfläche als Fallback.
+- Zusätzlich erfasste Dachanlagen: OpenStreetMap (© OSM-Mitwirkende, ODbL).
+- Gebäude & Dachpotenzial: LUBW Solarpotenzial Dachflächen (Shapefile, Klassen 1–3), siehe docs/datenmodell.md.
+- PLZ-Grenzen und Gebäudeart: OpenStreetMap (optional).
 
 **Konventionen**
 - Einheiten im Feldnamen (`_mwp`, `_kwp`, `_pct`, `_eur`, `_ct_per_kwh`, `_mwh`, `_t`, `_m2`).
@@ -62,7 +63,7 @@ Vertrag zwischen Python-Backend (FastAPI) und JavaScript-Frontend (Next.js).
 Diese Datei wird erzeugt mit `python -m app.export_openapi` (im Ordner `backend/`).
 """
 
-app = FastAPI(title="PV-Prognose Pforzheim", version="0.3.0", description=API_DESCRIPTION, lifespan=lifespan)
+app = FastAPI(title="PV-Prognose Pforzheim", version="0.4.0", description=API_DESCRIPTION, lifespan=lifespan)
 app.add_middleware(GZipMiddleware, minimum_size=2000)  # Gebäude-/Punktlisten sind groß
 app.add_middleware(
     CORSMiddleware,
@@ -75,7 +76,7 @@ app.add_middleware(
 api = APIRouter(prefix="/api/v1")
 
 CategoryQ = Query(None, description="Gebäudekategorie(n), mehrfach erlaubt")
-SuitabilityQ = Query(None, description="Eignungsklasse(n) 1, 2, 3, 6 – wirksam, sobald LUBW-Daten angebunden sind")
+SuitabilityQ = Query(None, description="Eignungsklasse(n) laut LUBW: 1, 2, 3 (PV-geeignet), 6, 8, 0")
 
 
 @api.get("/meta", response_model=Meta, tags=["status"])

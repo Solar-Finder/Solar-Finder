@@ -7,6 +7,7 @@ kleinere Anlagen sind lediglich einer Postleitzahl zugeordnet.
 from __future__ import annotations
 
 import json
+import logging
 import re
 import urllib.parse
 import urllib.request
@@ -14,6 +15,9 @@ from datetime import date, datetime, timezone
 from typing import Optional
 
 from .cache import DAY, cached
+from .osm import POSTAL_CODES
+
+log = logging.getLogger(__name__)
 
 BASE = "https://www.marktstammdatenregister.de/MaStR/Einheit/EinheitJson/GetErweiterteOeffentlicheEinheitStromerzeugung"
 GEMEINDESCHLUESSEL = "08231000"  # Pforzheim
@@ -75,6 +79,20 @@ def _fetch() -> dict:
     return {"retrieved_at": date.today().isoformat(), "units": units}
 
 
+def _in_pforzheim(u: dict) -> bool:
+    """Einige Einheiten tragen den Gemeindeschlüssel Pforzheim, aber PLZ/Ort einer Nachbargemeinde
+    (z. B. 75449 Wurmberg, 75399 Unterreichenbach). Sie liegen außerhalb des LUBW-Gebiets und
+    der PLZ-Grenzen und werden deshalb verworfen."""
+    return u.get("postal_code") in POSTAL_CODES
+
+
 def load(force: bool = False) -> dict:
-    """Alle in Betrieb befindlichen PV-Einheiten in Pforzheim (Cache: 1 Tag)."""
-    return cached("mastr_pforzheim_solar", DAY, _fetch, force=force)
+    """Alle in Betrieb befindlichen PV-Einheiten mit Pforzheimer PLZ (Cache: 1 Tag)."""
+    data = cached("mastr_pforzheim_solar", DAY, _fetch, force=force)
+    units = [u for u in data["units"] if _in_pforzheim(u)]
+    dropped = [u for u in data["units"] if not _in_pforzheim(u)]
+    if dropped:
+        log.info("MaStR: %d Einheiten (%.1f kW) außerhalb Pforzheims verworfen: %s", len(dropped),
+                 sum(u["power_kwp"] for u in dropped),
+                 ", ".join(sorted({f"{u.get('postal_code')} {u.get('city')}" for u in dropped})))
+    return {**data, "units": units, "excluded_outside_city": len(dropped)}

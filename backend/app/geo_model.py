@@ -1,13 +1,18 @@
-"""Räumliches Datenmodell: verknüpft MaStR-, OSM- und LUBW-Daten.
+"""Räumliches Datenmodell: LUBW-Gebäude als Basis, ergänzt um OSM und MaStR.
 
-Ablauf beim ersten Zugriff (danach im Speicher):
-1. Gebäude → PLZ-Gebiet (Schwerpunkt im Polygon)
-2. MaStR-Anlagen mit Koordinaten (nur > 30 kW öffentlich) und in OSM erfasste
+Ablauf beim ersten Zugriff (danach im Speicher), Details in docs/datenmodell.md:
+1. LUBW-Dachseiten → Gebäude mit Potenzial (kWp, kWh/a, CO₂), Eignungsklasse, Dachform
+2. Gebäudemittelpunkt → PLZ-Gebiet (OSM)
+3. Gebäudemittelpunkt → OSM-Gebäude → Kategorie, Gebäudeart, Name
+4. MaStR-Anlagen mit Koordinaten (nur > 30 kW öffentlich) und in OSM erfasste
    Dachanlagen → Gebäude (enthaltend oder nächstes im Umkreis)
-3. LUBW-Dachseiten über räumliche Überschneidung einem OSM-Gebäude zuordnen.
+
+OSM ist optional: Ist Overpass nicht erreichbar und kein Cache vorhanden, bleiben PLZ und
+Kategorie leer bzw. „other“. Die Potenzial- und Bestandssummen sind davon nicht betroffen.
 """
 from __future__ import annotations
 
+import logging
 import math
 import threading
 from collections import defaultdict
@@ -15,25 +20,16 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from shapely import STRtree
-from shapely.geometry import Point, shape
+from shapely.geometry import Point, mapping, shape
 
 from .sources import lubw, mastr, osm
 
-# LUBW ist die primäre Potenzialquelle; OSM-Grundflächen bleiben Fallback.
-POTENTIAL_SOURCE = "lubw"
-POTENTIAL_USABLE_ROOF_SHARE = 0.5
-POTENTIAL_KWP_PER_M2 = 0.18
-MIN_FOOTPRINT_M2 = 20
-MIN_POTENTIAL_KWP = 3                  # darunter gilt ein Dach nicht als „ungenutztes Potenzial“
+log = logging.getLogger(__name__)
 
-MATCH_RADIUS_M = 25                    # max. Abstand Anlage ↔ Gebäude, falls nicht innerhalb
+MATCH_RADIUS_M = 25                     # max. Abstand Anlage ↔ Gebäude, falls nicht innerhalb
+ROOF_PLANT_TYPES = {"Gebäudesolaranlage"}  # MaStR-Anlagentypen, die zum Dachpotenzial zählen
+GROUND_PLANT_TYPE = "Freiflächensolaranlage"
 
-# Gebäude ohne PV-Eignung (Garagen, Schuppen, Gewächshäuser …)
-NO_POTENTIAL_TYPES = {
-    "garage", "garages", "carport", "shed", "hut", "roof", "ruins", "construction", "container",
-    "kiosk", "toilets", "transformer_tower", "bunker", "greenhouse", "allotment_house", "bridge",
-    "tent", "collapsed", "storage_tank", "silo",
-}
 CATEGORY_BY_BUILDING = {
     **dict.fromkeys(["house", "apartments", "residential", "detached", "semidetached_house", "terrace",
                      "dormitory", "bungalow", "row_house"], "residential"),
@@ -47,13 +43,13 @@ CATEGORY_BY_BUILDING = {
 PUBLIC_AMENITIES = {"school", "kindergarten", "townhall", "hospital", "library", "place_of_worship",
                     "fire_station", "police", "community_centre", "university", "college"}
 
-_LAT0 = 48.89
-_MX = 111_320 * math.cos(math.radians(_LAT0))  # Meter je Grad Länge
-_MY = 110_540                                  # Meter je Grad Breite
+_MY = 110_540  # Meter je Grad Breite
 
 
-def _area_m2(geom) -> float:
-    return geom.area * _MX * _MY
+def _round_coords(geom: dict) -> dict:
+    def walk(c):
+        return [walk(x) for x in c] if isinstance(c[0], (list, tuple)) else [round(c[0], 6), round(c[1], 6)]
+    return {"type": geom["type"], "coordinates": walk(geom["coordinates"])}
 
 
 def _category(tags: dict) -> str:
@@ -69,19 +65,23 @@ def _category(tags: dict) -> str:
 
 @dataclass
 class Building:
-    id: str
+    id: str                              # "L<LUBW-BuildingID>"
     geom: object
     geojson: dict
-    category: str
-    building_type: str
+    center: tuple                        # Punkt sicher im Umriss (lon, lat)
     footprint_m2: float
-    potential_kwp: float
-    potential_kwh_per_year: float = 0.0
-    suitability: Optional[int] = None
-    roof_type: Optional[str] = None
-    postal_code: Optional[str] = None
+    potential_kwp: float                 # Σ Power, Klassen 1–3 (LUBW)
+    potential_kwh_per_year: float        # Σ Yield, Klassen 1–3 (LUBW)
+    co2_savings_kg_per_year: float       # Σ CO2Savings, Klassen 1–3 (LUBW)
+    suitability: int                     # beste Klasse (1, 2, 3, 6, 8, 0)
+    roof_type: str                       # flat / pitched / mixed / unknown
+    roof_faces: int
+    suitable_roof_faces: int
+    category: str = "other"
+    building_type: Optional[str] = None  # OSM building=*
+    osm_id: Optional[str] = None
     name: Optional[str] = None
-    center: tuple = (0.0, 0.0)  # Punkt sicher innerhalb des Grundrisses (lon, lat)
+    postal_code: Optional[str] = None
     installed_kwp: float = 0.0
     mastr_ids: list = field(default_factory=list)
     osm_solar: bool = False
@@ -94,18 +94,19 @@ class Building:
     def solar_status(self) -> str:
         if self.has_solar:
             return "existing"
-        return "potential" if self.potential_kwp >= MIN_POTENTIAL_KWP else "none"
+        return "potential" if self.potential_kwp > 0 else "none"
 
 
 @dataclass
 class Model:
     retrieved: dict
-    areas: list          # [{postal_code, name, geom, geojson}]
+    lubw: dict           # Metadaten + Gesamtsummen des LUBW-Datensatzes
+    osm_available: bool
+    areas: list          # [{postal_code, name, geom, geometry}]
     buildings: list      # [Building]
-    by_id: dict          # Gebäude-ID → Building
+    by_id: dict
     tree: STRtree
     units: list          # MaStR-Einheiten (dict) inkl. building_id
-    located_units: list
     plz_stats: dict      # PLZ → Kennzahlen
 
 
@@ -127,78 +128,64 @@ def reset_model() -> None:
         _model = None
 
 
+def is_roof_unit(u: dict) -> bool:
+    return u.get("plant_type") in ROOF_PLANT_TYPES
+
+
+def _optional(loader, name):
+    try:
+        return loader()
+    except Exception:  # noqa: BLE001 – OSM ist Zusatzinformation
+        log.exception("OSM-Daten „%s“ nicht verfügbar – fahre ohne fort", name)
+        return None
+
+
 def _build() -> Model:
-    m_data = mastr.load()
-    a_data = osm.load_postal_areas()
-    b_data = osm.load_buildings()
-    s_data = osm.load_solar()
     roof_data = lubw.load()
+    m_data = mastr.load()
+    a_data = _optional(osm.load_postal_areas, "PLZ-Grenzen")
+    b_data = _optional(osm.load_buildings, "Gebäude")
+    s_data = _optional(osm.load_solar, "Solaranlagen")
 
-    areas = [{**a, "geom": shape(a["geometry"])} for a in a_data["areas"]]
-    area_tree = STRtree([a["geom"] for a in areas])
-    roof_geometries = [r["geometry"] for r in roof_data["roofs"]]
-    roof_tree = STRtree(roof_geometries)
+    buildings = [
+        Building(
+            id=r["id"], geom=r["geometry"], geojson=_round_coords(mapping(r["geometry"])), center=r["center"],
+            footprint_m2=r["footprint_m2"], potential_kwp=r["potential_kwp"],
+            potential_kwh_per_year=r["potential_kwh_per_year"],
+            co2_savings_kg_per_year=r["co2_savings_kg_per_year"], suitability=r["suitability"],
+            roof_type=r["roof_type"], roof_faces=r["roof_faces"], suitable_roof_faces=r["suitable_roof_faces"],
+        )
+        for r in roof_data["buildings"]
+    ]
+    centers = [Point(b.center) for b in buildings]
 
-    def roof_values(building_geom):
-        hits = roof_tree.query(building_geom, predicate="intersects")
-        roofs = [
-            roof_data["roofs"][i] for i in hits
-            if building_geom.covers(roof_data["roofs"][i]["geometry"].representative_point())
-        ]
-        if not roofs:
-            return None
-        roof_types = {
-            "Flachdach": "flat", "Pultdach": "shed",
-            "Satteldach": "gable", "Spitzdach": "gable",
-        }
-        suitability = []
-        for r in roofs:
-            try:
-                if r.get("Eignung") is not None:
-                    suitability.append(int(r["Eignung"]))
-            except (TypeError, ValueError):
+    # 2. PLZ
+    areas = [{**a, "geom": shape(a["geometry"])} for a in (a_data or {}).get("areas", [])]
+    if areas:
+        area_tree = STRtree([a["geom"] for a in areas])
+        idx_pt, idx_area = area_tree.query(centers, predicate="within")
+        for i, j in zip(idx_pt, idx_area):
+            buildings[i].postal_code = areas[j]["postal_code"]
+
+    # 3. OSM-Gebäude → Kategorie
+    if b_data:
+        osm_b = []
+        for raw in b_data["buildings"]:
+            g = shape(raw["geometry"])
+            if not g.is_valid:
+                g = g.buffer(0)
+            if not g.is_empty:
+                osm_b.append((g, raw))
+        osm_tree = STRtree([g for g, _ in osm_b])
+        idx_pt, idx_osm = osm_tree.query(centers, predicate="within")
+        for i, j in zip(idx_pt, idx_osm):
+            b = buildings[i]
+            if b.osm_id:          # mehrere OSM-Treffer: ersten behalten
                 continue
-        usable_roofs = [r for r in roofs if r.get("Eignung") not in (6, "6")]
-        types = [roof_types.get(r.get("RoofType"), "other") for r in roofs]
-        return {
-            # Power is the installed PV capacity; ErtKwP_K is the specific yield.
-            "potential_kwp": sum(float(r.get("Power") or 0) for r in usable_roofs),
-            "potential_kwh": sum(float(r.get("ErtKwhaK") or 0) for r in usable_roofs),
-            "suitability": min(suitability) if suitability else None,
-            "roof_type": max(set(types), key=types.count) if types else None,
-        }
+            tags = osm_b[j][1]["tags"]
+            b.osm_id, b.category = osm_b[j][1]["id"], _category(tags)
+            b.building_type, b.name = tags.get("building"), tags.get("name")
 
-    buildings: list[Building] = []
-    for raw in b_data["buildings"]:
-        g = shape(raw["geometry"])
-        if g.is_empty or not g.is_valid:
-            g = g.buffer(0)
-            if g.is_empty:
-                continue
-        tags = raw["tags"]
-        btype = tags.get("building", "yes")
-        fp = _area_m2(g)
-        eligible = btype not in NO_POTENTIAL_TYPES and fp >= MIN_FOOTPRINT_M2
-        values = roof_values(g) if eligible else None
-        if values:
-            kwp = values["potential_kwp"]
-            kwh = values["potential_kwh"]
-            suitability = values["suitability"]
-            roof_type = values["roof_type"]
-        else:
-            kwp = fp * POTENTIAL_USABLE_ROOF_SHARE * POTENTIAL_KWP_PER_M2 if eligible else 0.0
-            kwh = kwp * 1000
-            suitability = None
-            roof_type = None
-        c = g.representative_point()
-        hits = area_tree.query(c, predicate="within")
-        buildings.append(Building(
-            id=raw["id"], geom=g, geojson=raw["geometry"], category=_category(tags), building_type=btype,
-            footprint_m2=round(fp, 1), potential_kwp=round(kwp, 1),
-            potential_kwh_per_year=round(kwh, 1), suitability=suitability, roof_type=roof_type,
-            postal_code=areas[hits[0]]["postal_code"] if len(hits) else None, name=tags.get("name"),
-            center=(round(c.x, 6), round(c.y, 6)),
-        ))
     tree = STRtree([b.geom for b in buildings])
     radius_deg = MATCH_RADIUS_M / _MY
 
@@ -210,23 +197,19 @@ def _build() -> Model:
         idx = tree.query_nearest(p, max_distance=radius_deg)
         return buildings[idx[0]] if len(idx) else None
 
-    # MaStR-Anlagen mit Koordinaten
+    # 4a. MaStR-Anlagen mit Koordinaten (ohne Freiflächen)
     units = m_data["units"]
-    located = []
     for u in units:
         u["building_id"] = None
-        if u.get("lat") and u.get("lon"):
-            located.append(u)
-            if u.get("plant_type") == "Freiflächensolaranlage":
-                continue
+        if u.get("lat") and u.get("lon") and u.get("plant_type") != GROUND_PLANT_TYPE:
             b = match(u["lon"], u["lat"])
             if b:
                 b.mastr_ids.append(u["id"])
                 b.installed_kwp += u["power_kwp"]
                 u["building_id"] = b.id
 
-    # In OSM erfasste Dachanlagen (ohne Freiflächen)
-    for s in s_data["solar"]:
+    # 4b. In OSM erfasste Dachanlagen
+    for s in (s_data or {}).get("solar", []):
         if s.get("location") in ("ground", "underground"):
             continue
         b = match(s["lon"], s["lat"])
@@ -234,12 +217,13 @@ def _build() -> Model:
             b.osm_solar = True
 
     # Kennzahlen je PLZ
-    stats = defaultdict(lambda: {"installed_kwp": 0.0, "units": 0, "located": 0, "balcony": 0,
-                                 "potential_kwp": 0.0, "buildings": 0, "buildings_with_solar": 0,
-                                 "buildings_potential": 0})
+    stats = defaultdict(lambda: {"installed_kwp": 0.0, "installed_roof_kwp": 0.0, "units": 0, "located": 0,
+                                 "balcony": 0, "potential_kwp": 0.0, "potential_kwh": 0.0, "buildings": 0,
+                                 "buildings_with_solar": 0, "buildings_potential": 0})
     for u in units:
         st = stats[u["postal_code"]]
         st["installed_kwp"] += u["power_kwp"]
+        st["installed_roof_kwp"] += u["power_kwp"] if is_roof_unit(u) else 0.0
         st["units"] += 1
         st["located"] += 1 if u.get("lat") else 0
         st["balcony"] += 1 if "Balkon" in (u.get("plant_type") or "") else 0
@@ -248,13 +232,25 @@ def _build() -> Model:
             continue
         st = stats[b.postal_code]
         st["potential_kwp"] += b.potential_kwp
+        st["potential_kwh"] += b.potential_kwh_per_year
         st["buildings"] += 1
         st["buildings_with_solar"] += b.has_solar
         st["buildings_potential"] += b.solar_status == "potential"
 
+    log.info("Modell: %d Gebäude, davon %d mit PLZ, %d mit OSM-Gebäude, %d mit Anlage",
+             len(buildings), sum(1 for b in buildings if b.postal_code),
+             sum(1 for b in buildings if b.osm_id), sum(1 for b in buildings if b.has_solar))
+
     return Model(
-        retrieved={"mastr": m_data["retrieved_at"], "osm_buildings": b_data["retrieved_at"],
-                   "osm_postal_areas": a_data["retrieved_at"], "osm_solar": s_data["retrieved_at"],
-                   "lubw_roofs": roof_data["retrieved_at"]},
-        areas=areas, buildings=buildings, by_id={b.id: b for b in buildings}, tree=tree, units=units, located_units=located, plz_stats=dict(stats),
+        retrieved={
+            "mastr": m_data["retrieved_at"],
+            "lubw": roof_data["loaded_at"],
+            "osm_buildings": (b_data or {}).get("retrieved_at"),
+            "osm_postal_areas": (a_data or {}).get("retrieved_at"),
+            "osm_solar": (s_data or {}).get("retrieved_at"),
+        },
+        lubw={k: roof_data[k] for k in ("data_year", "origin", "totals")},
+        osm_available=bool(a_data and b_data),
+        areas=areas, buildings=buildings, by_id={b.id: b for b in buildings}, tree=tree,
+        units=units, plz_stats=dict(stats),
     )

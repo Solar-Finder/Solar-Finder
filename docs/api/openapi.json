@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "PV-Prognose Pforzheim",
-    "description": "\nVertrag zwischen Python-Backend (FastAPI) und JavaScript-Frontend (Next.js).\n\n**Datenquellen**\n- PV-Anlagen: Marktstammdatenregister (alle Einheiten „In Betrieb“, Gemeinde Pforzheim).\n  Koordinaten/Adresse sind nur bei Anlagen > 30 kW öffentlich; kleinere Anlagen nur je PLZ.\n- PLZ-Grenzen, Gebäudegrundrisse, zusätzlich erfasste Dachanlagen: OpenStreetMap (© OSM-Mitwirkende, ODbL).\n- Dachpotenzial: bis zur Anbindung der LUBW-Dachflächendaten aus der Grundfläche geschätzt\n  (`potential_status: estimated`); Eignungsklassen und Dachformen folgen (`pending`).\n\n**Konventionen**\n- Einheiten im Feldnamen (`_mwp`, `_kwp`, `_pct`, `_eur`, `_ct_per_kwh`, `_mwh`, `_t`, `_m2`).\n- GeoJSON in WGS84 (EPSG:4326), Koordinaten `[lon, lat]`.\n- Mehrfach-Filter als wiederholte Query-Parameter (`?category=public&category=commercial`).\n\nDiese Datei wird erzeugt mit `python -m app.export_openapi` (im Ordner `backend/`).\n",
-    "version": "0.3.0"
+    "description": "\nVertrag zwischen Python-Backend (FastAPI) und JavaScript-Frontend (Next.js).\n\n**Datenquellen**\n- PV-Anlagen: Marktstammdatenregister (alle Einheiten „In Betrieb“, Gemeinde Pforzheim).\n  Koordinaten/Adresse sind nur bei Anlagen > 30 kW öffentlich; kleinere Anlagen nur je PLZ.\n- Zusätzlich erfasste Dachanlagen: OpenStreetMap (© OSM-Mitwirkende, ODbL).\n- Gebäude & Dachpotenzial: LUBW Solarpotenzial Dachflächen (Shapefile, Klassen 1–3), siehe docs/datenmodell.md.\n- PLZ-Grenzen und Gebäudeart: OpenStreetMap (optional).\n\n**Konventionen**\n- Einheiten im Feldnamen (`_mwp`, `_kwp`, `_pct`, `_eur`, `_ct_per_kwh`, `_mwh`, `_t`, `_m2`).\n- GeoJSON in WGS84 (EPSG:4326), Koordinaten `[lon, lat]`.\n- Mehrfach-Filter als wiederholte Query-Parameter (`?category=public&category=commercial`).\n\nDiese Datei wird erzeugt mit `python -m app.export_openapi` (im Ordner `backend/`).\n",
+    "version": "0.4.0"
   },
   "paths": {
     "/api/v1/meta": {
@@ -480,10 +480,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Eignungsklasse(n) 1, 2, 3, 6 – wirksam, sobald LUBW-Daten angebunden sind",
+              "description": "Eignungsklasse(n) laut LUBW: 1, 2, 3 (PV-geeignet), 6, 8, 0",
               "title": "Suitability"
             },
-            "description": "Eignungsklasse(n) 1, 2, 3, 6 – wirksam, sobald LUBW-Daten angebunden sind"
+            "description": "Eignungsklasse(n) laut LUBW: 1, 2, 3 (PV-geeignet), 6, 8, 0"
           }
         ],
         "responses": {
@@ -571,10 +571,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Eignungsklasse(n) 1, 2, 3, 6 – wirksam, sobald LUBW-Daten angebunden sind",
+              "description": "Eignungsklasse(n) laut LUBW: 1, 2, 3 (PV-geeignet), 6, 8, 0",
               "title": "Suitability"
             },
-            "description": "Eignungsklasse(n) 1, 2, 3, 6 – wirksam, sobald LUBW-Daten angebunden sind"
+            "description": "Eignungsklasse(n) laut LUBW: 1, 2, 3 (PV-geeignet), 6, 8, 0"
           }
         ],
         "responses": {
@@ -662,10 +662,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Eignungsklasse(n) 1, 2, 3, 6 – wirksam, sobald LUBW-Daten angebunden sind",
+              "description": "Eignungsklasse(n) laut LUBW: 1, 2, 3 (PV-geeignet), 6, 8, 0",
               "title": "Suitability"
             },
-            "description": "Eignungsklasse(n) 1, 2, 3, 6 – wirksam, sobald LUBW-Daten angebunden sind"
+            "description": "Eignungsklasse(n) laut LUBW: 1, 2, 3 (PV-geeignet), 6, 8, 0"
           }
         ],
         "responses": {
@@ -915,7 +915,14 @@
             "$ref": "#/components/schemas/BuildingCategory"
           },
           "building_type": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Building Type"
           },
           "name": {
@@ -928,6 +935,17 @@
               }
             ],
             "title": "Name"
+          },
+          "osm_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Osm Id"
           },
           "footprint_m2": {
             "type": "number",
@@ -955,6 +973,26 @@
           },
           "potential_status": {
             "$ref": "#/components/schemas/DataStatus"
+          },
+          "potential_kwh_per_year": {
+            "type": "number",
+            "title": "Potential Kwh Per Year",
+            "default": 0.0
+          },
+          "co2_savings_kg_per_year": {
+            "type": "number",
+            "title": "Co2 Savings Kg Per Year",
+            "default": 0.0
+          },
+          "roof_faces": {
+            "type": "integer",
+            "title": "Roof Faces",
+            "default": 0
+          },
+          "suitable_roof_faces": {
+            "type": "integer",
+            "title": "Suitable Roof Faces",
+            "default": 0
           },
           "suitability": {
             "anyOf": [
@@ -991,7 +1029,6 @@
         "type": "object",
         "required": [
           "category",
-          "building_type",
           "footprint_m2",
           "solar_status",
           "potential_kwp",
@@ -1090,6 +1127,17 @@
           "co2_kg_per_kwh": {
             "type": "number",
             "title": "Co2 Kg Per Kwh"
+          },
+          "consumption_gwh_per_year": {
+            "type": "number",
+            "title": "Consumption Gwh Per Year"
+          },
+          "status": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DataStatus"
+            },
+            "type": "object",
+            "title": "Status"
           }
         },
         "type": "object",
@@ -1097,7 +1145,9 @@
           "investment_eur_per_kwp",
           "specific_yield_kwh_per_kwp",
           "operating_cost_pct_of_investment",
-          "co2_kg_per_kwh"
+          "co2_kg_per_kwh",
+          "consumption_gwh_per_year",
+          "status"
         ],
         "title": "ForecastAssumptions"
       },
@@ -1671,9 +1721,17 @@
             "type": "number",
             "title": "Installed Power Mwp"
           },
+          "installed_roof_power_mwp": {
+            "type": "number",
+            "title": "Installed Roof Power Mwp"
+          },
           "potential_power_mwp": {
             "type": "number",
             "title": "Potential Power Mwp"
+          },
+          "potential_energy_mwh_per_year": {
+            "type": "number",
+            "title": "Potential Energy Mwh Per Year"
           },
           "utilization_pct": {
             "type": "number",
@@ -1725,7 +1783,9 @@
         "required": [
           "postal_code",
           "installed_power_mwp",
+          "installed_roof_power_mwp",
           "potential_power_mwp",
+          "potential_energy_mwh_per_year",
           "utilization_pct",
           "installation_count",
           "located_installation_count",
@@ -1766,12 +1826,13 @@
       "RoofType": {
         "type": "string",
         "enum": [
-          "gable",
           "flat",
-          "shed",
-          "other"
+          "pitched",
+          "mixed",
+          "unknown"
         ],
-        "title": "RoofType"
+        "title": "RoofType",
+        "description": "Dachform je Gebäude aus LUBW `RoofType` der Dachseiten."
       },
       "Sliders": {
         "properties": {
@@ -1808,9 +1869,17 @@
             "type": "number",
             "title": "Installed Power Mwp"
           },
+          "installed_roof_power_mwp": {
+            "type": "number",
+            "title": "Installed Roof Power Mwp"
+          },
           "potential_power_mwp": {
             "type": "number",
             "title": "Potential Power Mwp"
+          },
+          "potential_energy_mwh_per_year": {
+            "type": "number",
+            "title": "Potential Energy Mwh Per Year"
           },
           "utilization_pct": {
             "type": "number",
@@ -1847,7 +1916,9 @@
         "type": "object",
         "required": [
           "installed_power_mwp",
+          "installed_roof_power_mwp",
           "potential_power_mwp",
+          "potential_energy_mwh_per_year",
           "utilization_pct",
           "installation_count",
           "located_installation_count",
@@ -1865,10 +1936,12 @@
           1,
           2,
           3,
-          6
+          6,
+          8,
+          0
         ],
         "title": "SuitabilityClass",
-        "description": "Eignungsklassen laut LUBW-Dachflächenpotenzial (Daten folgen)."
+        "description": "Eignungsklassen laut LUBW-Shapefile (Spalte `Eignung`), siehe docs/datenmodell.md."
       },
       "ValidationError": {
         "properties": {

@@ -17,18 +17,21 @@ class BuildingCategory(str, Enum):
 
 
 class SuitabilityClass(IntEnum):
-    """Eignungsklassen laut LUBW-Dachflächenpotenzial (Daten folgen)."""
-    k1 = 1
-    k2 = 2
-    k3 = 3
-    k6 = 6
+    """Eignungsklassen laut LUBW-Shapefile (Spalte `Eignung`), siehe docs/datenmodell.md."""
+    k1 = 1  # PV-geeignet, höchster spezifischer Ertrag
+    k2 = 2  # PV-geeignet
+    k3 = 3  # PV-geeignet, niedrigster spezifischer Ertrag
+    k6 = 6  # keine PV-Belegungsfläche
+    k8 = 8  # keine Berechnung vorhanden
+    k0 = 0  # Dachtyp unbekannt
 
 
 class RoofType(str, Enum):
-    gable = "gable"  # Satteldach
-    flat = "flat"    # Flachdach
-    shed = "shed"    # Pultdach
-    other = "other"  # Sonstige
+    """Dachform je Gebäude aus LUBW `RoofType` der Dachseiten."""
+    flat = "flat"        # nur Flachdach-Seiten
+    pitched = "pitched"  # nur Spitzdach-Seiten (geneigt)
+    mixed = "mixed"      # Flach- und Spitzdach-Seiten
+    unknown = "unknown"  # Dachtyp unbekannt
 
 
 class SolarStatus(str, Enum):
@@ -39,7 +42,7 @@ class SolarStatus(str, Enum):
 
 class DataStatus(str, Enum):
     verified = "verified"    # amtliche bzw. registrierte Daten
-    estimated = "estimated"  # Schätzung (z. B. Potenzial aus Grundfläche)
+    estimated = "estimated"  # Schätzung
     example = "example"      # Beispiel-/Modellwert
     pending = "pending"      # Datenquelle noch nicht angebunden
 
@@ -93,9 +96,11 @@ class Meta(BaseModel):
 
 # ---------- Status ----------
 class Status(BaseModel):
-    installed_power_mwp: float
-    potential_power_mwp: float
-    utilization_pct: float
+    installed_power_mwp: float       # alle MaStR-Anlagen in Betrieb
+    installed_roof_power_mwp: float  # davon Gebäudesolaranlagen (Basis für utilization_pct)
+    potential_power_mwp: float       # LUBW, Klassen 1–3
+    potential_energy_mwh_per_year: float
+    utilization_pct: float           # installed_roof_power / potential_power
     installation_count: int          # alle registrierten Anlagen
     located_installation_count: int  # davon mit Koordinaten (> 30 kW)
     balcony_count: int               # davon Balkonkraftwerke
@@ -142,24 +147,28 @@ class InstallationCollection(BaseModel):
 
 
 class BuildingProps(BaseModel):
-    category: BuildingCategory
-    building_type: str
+    category: BuildingCategory          # aus OSM; ohne OSM-Treffer "other"
+    building_type: Optional[str] = None # OSM building=*
     name: Optional[str] = None
-    footprint_m2: float
+    osm_id: Optional[str] = None
+    footprint_m2: float                 # Fläche der vereinigten LUBW-Dachseiten
     solar_status: SolarStatus
     installed_kwp: float = 0.0          # Summe der zugeordneten MaStR-Anlagen
     solar_sources: list[str] = []       # "mastr", "osm"
-    potential_kwp: float                # Dachpotenzial aus LUBW, ggf. OSM-Fallback
+    potential_kwp: float                # LUBW Σ Power, Klassen 1–3
     potential_status: DataStatus
-    potential_kwh_per_year: float = 0.0
-    suitability: Optional[SuitabilityClass] = None
+    potential_kwh_per_year: float = 0.0 # LUBW Σ Yield, Klassen 1–3
+    co2_savings_kg_per_year: float = 0.0  # LUBW Σ CO2Savings, Klassen 1–3
+    roof_faces: int = 0
+    suitable_roof_faces: int = 0        # Dachseiten der Klassen 1–3
+    suitability: Optional[SuitabilityClass] = None  # beste Klasse des Gebäudes
     roof_type: Optional[RoofType] = None
     postal_code: Optional[str] = None
 
 
 class BuildingFeature(BaseModel):
     type: Literal["Feature"] = "Feature"
-    id: str  # OSM-ID (w…/r…)
+    id: str  # "L" + LUBW-BuildingID
     geometry: PolygonGeometry
     properties: BuildingProps
 
@@ -180,7 +189,9 @@ class PostalAreaProps(BaseModel):
     postal_code: str
     name: Optional[str] = None
     installed_power_mwp: float
+    installed_roof_power_mwp: float
     potential_power_mwp: float
+    potential_energy_mwh_per_year: float
     utilization_pct: float
     installation_count: int
     located_installation_count: int
@@ -234,13 +245,15 @@ class ForecastYear(BaseModel):
 
 class ForecastAssumptions(BaseModel):
     investment_eur_per_kwp: float
-    specific_yield_kwh_per_kwp: float
+    specific_yield_kwh_per_kwp: float       # LUBW Σ Yield / Σ Power (Klassen 1–3)
     operating_cost_pct_of_investment: float
-    co2_kg_per_kwh: float
+    co2_kg_per_kwh: float                   # LUBW Σ CO2Savings / Σ Yield
+    consumption_gwh_per_year: float
+    status: dict[str, DataStatus]           # Herkunft je Annahme (verified = aus Daten, example = Beispielwert)
 
 
 class ForecastResponse(BaseModel):
-    data_status: DataStatus  # Modellannahmen sind Beispielwerte
+    data_status: DataStatus  # example, solange Kosten/Verbrauch Beispielwerte sind
     existing_power_mwp: float
     potential_power_mwp: float
     target_power_mwp: float

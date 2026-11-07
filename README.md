@@ -97,7 +97,7 @@ Die Befehle gelten für PowerShell (Standard in VS Code unter Windows).
 ✅ Läuft, sobald `Application startup complete` erscheint → API-Doku unter http://localhost:8000/docs
 
 > **Erster Start:** Das Backend lädt die Daten aus Marktstammdatenregister und OpenStreetMap (ca. 5 Minuten)
-> und speichert sie in `backend/data/cache/` (nicht im Git). Danach startet es in Sekunden.
+> und speichert sie in `data/cache/` (nicht im Git). Danach startet es in Sekunden.
 
 ### 2. Frontend (Terminal 2)
 
@@ -121,6 +121,7 @@ Die Befehle gelten für PowerShell (Standard in VS Code unter Windows).
 
 ### Data
 - **Marktstammdatenregister** (API): alle PV-Anlagen „In Betrieb“ in Pforzheim. Adresse/Koordinaten nur bei Anlagen > 30 kW öffentlich, kleinere nur mit PLZ → nur Großanlagen sind gebäudegenau verortbar. Cache: 1 Tag.
-- **OpenStreetMap** (Overpass-API): PLZ-Grenzen, Gebäudegrundrisse, zusätzlich erfasste Dachanlagen. Cache: 30 bzw. 7 Tage.
-- **LUBW Dachflächenpotenzial**: folgt. Bis dahin wird das Dachpotenzial aus der Gebäudegrundfläche geschätzt (50 % nutzbar, 0,18 kWp/m², Annahmen in `backend/app/geo_model.py`); Eignungsklassen und Dachformen werden nachgeliefert.
-- Wirtschaftlichkeit (Investition, Ertrag, CO₂, Verbrauch, Strompreis): noch Beispielannahmen.
+- **LUBW Solarpotenzial Dachflächen** (`data/8231_…/*.shp`): Gebäude, Dachpotenzial (kWp), Jahresertrag, CO₂, Eignungsklasse, Dachform – nur Dachseiten der Klassen 1–3 zählen als Potenzial.
+- **OpenStreetMap** (Overpass-API, optional): PLZ-Grenzen, Gebäudeart, zusätzlich erfasste Dachanlagen. Cache: 30 bzw. 7 Tage. Ist Overpass nicht erreichbar, lädt das Backend automatisch den Geofabrik-Auszug (~155 MB) bzw. nutzt Nominatim + OSM-API.
+- Spezifischer Ertrag (kWh/kWp) und CO₂-Faktor (kg/kWh) stammen aus den LUBW-Daten. Investition, Betriebskosten, Strompreis und Stromverbrauch sind noch Beispielwerte.
+- Alle Formeln und die Spaltenbedeutung: [`docs/datenmodell.md`](docs/datenmodell.md)

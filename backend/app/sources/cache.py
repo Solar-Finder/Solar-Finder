@@ -1,4 +1,4 @@
-"""Einfacher JSON-Dateicache mit Ablaufzeit (backend/data/cache, nicht im Git)."""
+"""Einfacher JSON-Dateicache mit Ablaufzeit (data/cache im Projektordner, nicht im Git)."""
 from __future__ import annotations
 
 import json
@@ -9,7 +9,7 @@ from typing import Any, Callable
 
 log = logging.getLogger(__name__)
 
-CACHE_DIR = Path(__file__).resolve().parents[2] / "data" / "cache"
+CACHE_DIR = Path(__file__).resolve().parents[3] / "data" / "cache"
 DAY = 24 * 3600
 
 
