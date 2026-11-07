@@ -47,8 +47,7 @@ Vertrag zwischen Python-Backend (FastAPI) und JavaScript-Frontend (Next.js).
 - PV-Anlagen: Marktstammdatenregister (alle Einheiten „In Betrieb“, Gemeinde Pforzheim).
   Koordinaten/Adresse sind nur bei Anlagen > 30 kW öffentlich; kleinere Anlagen nur je PLZ.
 - PLZ-Grenzen, Gebäudegrundrisse, zusätzlich erfasste Dachanlagen: OpenStreetMap (© OSM-Mitwirkende, ODbL).
-- Dachpotenzial: bis zur Anbindung der LUBW-Dachflächendaten aus der Grundfläche geschätzt
-  (`potential_status: estimated`); Eignungsklassen und Dachformen folgen (`pending`).
+- Dachpotenzial: lokale LUBW-Dachseiten-Shapefile, mit OSM-Grundfläche als Fallback.
 
 **Konventionen**
 - Einheiten im Feldnamen (`_mwp`, `_kwp`, `_pct`, `_eur`, `_ct_per_kwh`, `_mwh`, `_t`, `_m2`).

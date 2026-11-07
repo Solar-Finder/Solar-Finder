@@ -1,11 +1,10 @@
-"""Räumliches Datenmodell: verknüpft MaStR-Anlagen, OSM-Gebäude und PLZ-Gebiete.
+"""Räumliches Datenmodell: verknüpft MaStR-, OSM- und LUBW-Daten.
 
 Ablauf beim ersten Zugriff (danach im Speicher):
 1. Gebäude → PLZ-Gebiet (Schwerpunkt im Polygon)
 2. MaStR-Anlagen mit Koordinaten (nur > 30 kW öffentlich) und in OSM erfasste
    Dachanlagen → Gebäude (enthaltend oder nächstes im Umkreis)
-3. Dachpotenzial je Gebäude – bis die LUBW-Dachflächendaten angebunden sind
-   als SCHÄTZUNG aus der Grundfläche (siehe POTENTIAL_*).
+3. LUBW-Dachseiten über räumliche Überschneidung einem OSM-Gebäude zuordnen.
 """
 from __future__ import annotations
 
@@ -18,13 +17,13 @@ from typing import Optional
 from shapely import STRtree
 from shapely.geometry import Point, shape
 
-from .sources import mastr, osm
+from .sources import lubw, mastr, osm
 
-# ---- Potenzialschätzung (Platzhalter bis LUBW-Daten) ----
-POTENTIAL_SOURCE = "estimate"          # später: "lubw"
-POTENTIAL_USABLE_ROOF_SHARE = 0.5      # nutzbarer Anteil der Grundfläche als Modulfläche
-POTENTIAL_KWP_PER_M2 = 0.18            # ca. 5,5 m² Modulfläche je kWp
-MIN_FOOTPRINT_M2 = 20                  # kleinere Gebäude: kein nennenswertes Potenzial
+# LUBW ist die primäre Potenzialquelle; OSM-Grundflächen bleiben Fallback.
+POTENTIAL_SOURCE = "lubw"
+POTENTIAL_USABLE_ROOF_SHARE = 0.5
+POTENTIAL_KWP_PER_M2 = 0.18
+MIN_FOOTPRINT_M2 = 20
 MIN_POTENTIAL_KWP = 3                  # darunter gilt ein Dach nicht als „ungenutztes Potenzial“
 
 MATCH_RADIUS_M = 25                    # max. Abstand Anlage ↔ Gebäude, falls nicht innerhalb
@@ -77,6 +76,9 @@ class Building:
     building_type: str
     footprint_m2: float
     potential_kwp: float
+    potential_kwh_per_year: float = 0.0
+    suitability: Optional[int] = None
+    roof_type: Optional[str] = None
     postal_code: Optional[str] = None
     name: Optional[str] = None
     installed_kwp: float = 0.0
@@ -128,9 +130,41 @@ def _build() -> Model:
     a_data = osm.load_postal_areas()
     b_data = osm.load_buildings()
     s_data = osm.load_solar()
+    roof_data = lubw.load()
 
     areas = [{**a, "geom": shape(a["geometry"])} for a in a_data["areas"]]
     area_tree = STRtree([a["geom"] for a in areas])
+    roof_geometries = [r["geometry"] for r in roof_data["roofs"]]
+    roof_tree = STRtree(roof_geometries)
+
+    def roof_values(building_geom):
+        hits = roof_tree.query(building_geom, predicate="intersects")
+        roofs = [
+            roof_data["roofs"][i] for i in hits
+            if building_geom.covers(roof_data["roofs"][i]["geometry"].representative_point())
+        ]
+        if not roofs:
+            return None
+        roof_types = {
+            "Flachdach": "flat", "Pultdach": "shed",
+            "Satteldach": "gable", "Spitzdach": "gable",
+        }
+        suitability = []
+        for r in roofs:
+            try:
+                if r.get("Eignung") is not None:
+                    suitability.append(int(r["Eignung"]))
+            except (TypeError, ValueError):
+                continue
+        usable_roofs = [r for r in roofs if r.get("Eignung") not in (6, "6")]
+        types = [roof_types.get(r.get("RoofType"), "other") for r in roofs]
+        return {
+            # Power is the installed PV capacity; ErtKwP_K is the specific yield.
+            "potential_kwp": sum(float(r.get("Power") or 0) for r in usable_roofs),
+            "potential_kwh": sum(float(r.get("ErtKwhaK") or 0) for r in usable_roofs),
+            "suitability": min(suitability) if suitability else None,
+            "roof_type": max(set(types), key=types.count) if types else None,
+        }
 
     buildings: list[Building] = []
     for raw in b_data["buildings"]:
@@ -143,12 +177,23 @@ def _build() -> Model:
         btype = tags.get("building", "yes")
         fp = _area_m2(g)
         eligible = btype not in NO_POTENTIAL_TYPES and fp >= MIN_FOOTPRINT_M2
-        kwp = fp * POTENTIAL_USABLE_ROOF_SHARE * POTENTIAL_KWP_PER_M2 if eligible else 0.0
+        values = roof_values(g) if eligible else None
+        if values:
+            kwp = values["potential_kwp"]
+            kwh = values["potential_kwh"]
+            suitability = values["suitability"]
+            roof_type = values["roof_type"]
+        else:
+            kwp = fp * POTENTIAL_USABLE_ROOF_SHARE * POTENTIAL_KWP_PER_M2 if eligible else 0.0
+            kwh = kwp * 1000
+            suitability = None
+            roof_type = None
         c = g.representative_point()
         hits = area_tree.query(c, predicate="within")
         buildings.append(Building(
             id=raw["id"], geom=g, geojson=raw["geometry"], category=_category(tags), building_type=btype,
             footprint_m2=round(fp, 1), potential_kwp=round(kwp, 1),
+            potential_kwh_per_year=round(kwh, 1), suitability=suitability, roof_type=roof_type,
             postal_code=areas[hits[0]]["postal_code"] if len(hits) else None, name=tags.get("name"),
         ))
     tree = STRtree([b.geom for b in buildings])
@@ -206,6 +251,7 @@ def _build() -> Model:
 
     return Model(
         retrieved={"mastr": m_data["retrieved_at"], "osm_buildings": b_data["retrieved_at"],
-                   "osm_postal_areas": a_data["retrieved_at"], "osm_solar": s_data["retrieved_at"]},
+                   "osm_postal_areas": a_data["retrieved_at"], "osm_solar": s_data["retrieved_at"],
+                   "lubw_roofs": roof_data["retrieved_at"]},
         areas=areas, buildings=buildings, tree=tree, units=units, located_units=located, plz_stats=dict(stats),
     )

@@ -6,8 +6,7 @@ Echte Daten:
 - Gebäude mit Anlage: MaStR-Anlagen > 30 kW (Koordinaten) + in OSM erfasste Dachanlagen
 
 Noch Schätzung / Beispiel:
-- Dachpotenzial je Gebäude: Schätzung aus der Grundfläche (geo_model.POTENTIAL_*),
-  wird durch die LUBW-Dachflächendaten ersetzt (Eignungsklassen, Dachformen folgen damit)
+- Dachpotenzial je Gebäude: LUBW-Dachseiten, mit OSM-Schätzung als Fallback
 - Wirtschaftlichkeit (Investition, Ertrag, CO₂, Stromverbrauch, Strompreis): Modellannahmen
 """
 from __future__ import annotations
@@ -26,8 +25,8 @@ from .schemas import (
     ForecastYear,
 )
 
-POTENTIAL_STATUS = DataStatus.estimated if POTENTIAL_SOURCE == "estimate" else DataStatus.verified
-SUITABILITY_STATUS = DataStatus.pending  # LUBW-Daten folgen
+POTENTIAL_STATUS = DataStatus.verified if POTENTIAL_SOURCE == "lubw" else DataStatus.estimated
+SUITABILITY_STATUS = DataStatus.verified if POTENTIAL_SOURCE == "lubw" else DataStatus.pending
 
 # ---- Modellannahmen (Beispielwerte aus dem Mockup) ----
 INVESTMENT_EUR_PER_KWP = 900.0
@@ -68,6 +67,18 @@ def _totals(postal_code: Optional[str] = None):
     return installed, potential, units
 
 
+def _specific_yield(postal_code: Optional[str] = None) -> float:
+    m = get_model()
+    buildings = [
+        b for b in m.buildings
+        if b.postal_code and (not postal_code or b.postal_code == postal_code)
+        and b.potential_kwp > 0
+    ]
+    capacity = sum(b.potential_kwp for b in buildings)
+    annual_energy = sum(b.potential_kwh_per_year for b in buildings)
+    return annual_energy / capacity if capacity else SPECIFIC_YIELD_KWH_PER_KWP
+
+
 # ================= öffentliche Funktionen =================
 
 def meta():
@@ -96,7 +107,8 @@ def meta():
              "retrieved_at": _iso(m.retrieved["osm_buildings"]), "note": "© OpenStreetMap-Mitwirkende, ODbL"},
             {"name": "LUBW Dachflächenpotenzial",
              "url": "https://udo.lubw.baden-wuerttemberg.de/projekte-hilfe/download/energie/PV_Dachflaechenpotenzial.html",
-             "note": "folgt – bis dahin Potenzial aus Grundfläche geschätzt"},
+             "retrieved_at": _iso(m.retrieved["lubw_roofs"]),
+             "note": "Lokale Dachseiten-Shapefile; OSM-Schätzung nur ohne räumliche Zuordnung"},
         ],
         "data_as_of": _iso(m.retrieved["mastr"]),
     }
@@ -114,7 +126,7 @@ def status(postal_code: Optional[str] = None):
         "balcony_count": sum(1 for u in units if "Balkon" in (u.get("plant_type") or "")),
         "installed_status": DataStatus.verified,
         "potential_status": POTENTIAL_STATUS,
-        "source": "MaStR · Potenzial geschätzt (OSM)" if POTENTIAL_STATUS == DataStatus.estimated else "MaStR · LUBW",
+        "source": "MaStR · LUBW-Dachseiten (OSM-Fallback)",
         "data_as_of": _iso(m.retrieved["mastr"]),
     }
 
@@ -151,7 +163,7 @@ def _bbox(bbox: Optional[str]):
     return box(x0, y0, x1, y1)
 
 
-def _filtered_buildings(postal_code=None, category=None, bbox=None):
+def _filtered_buildings(postal_code=None, category=None, bbox=None, suitability=None):
     m = get_model()
     if bbox is not None:
         cand = (m.buildings[i] for i in m.tree.query(bbox, predicate="intersects"))
@@ -161,6 +173,8 @@ def _filtered_buildings(postal_code=None, category=None, bbox=None):
         if not b.postal_code or (postal_code and b.postal_code != postal_code):
             continue
         if category and b.category not in category:
+            continue
+        if suitability and b.suitability not in suitability:
             continue
         yield b
 
@@ -181,6 +195,8 @@ def buildings(bbox=None, postal_code=None, category=None, solar_status=None, lim
                 "footprint_m2": b.footprint_m2, "solar_status": b.solar_status,
                 "installed_kwp": round(b.installed_kwp, 1), "solar_sources": sources,
                 "potential_kwp": b.potential_kwp, "potential_status": POTENTIAL_STATUS,
+                "potential_kwh_per_year": b.potential_kwh_per_year,
+                "suitability": b.suitability, "roof_type": b.roof_type,
                 "postal_code": b.postal_code,
             },
         })
@@ -226,17 +242,19 @@ def _breakdown(rows: Iterable, key, labels: dict, status: DataStatus, note=None)
 
 
 def building_categories(postal_code=None, category=None, suitability=None):
-    rows = _filtered_buildings(postal_code, category)
+    rows = _filtered_buildings(postal_code, category, suitability=suitability)
     return _breakdown(rows, lambda b: b.category, CATEGORY_LABELS, DataStatus.verified,
                       note="Gebäudeart laut OpenStreetMap")
 
 
 def roof_types(postal_code=None, category=None, suitability=None):
-    return {"basis": "count", "data_status": SUITABILITY_STATUS, "note": "Dachformen folgen mit den LUBW-Daten", "items": []}
+    rows = _filtered_buildings(postal_code, category, suitability=suitability)
+    return _breakdown(rows, lambda b: b.roof_type or "other", ROOF_LABELS, SUITABILITY_STATUS)
 
 
 def suitability_classes(postal_code=None, category=None, suitability=None):
-    return {"basis": "count", "data_status": SUITABILITY_STATUS, "note": "Eignungsklassen folgen mit den LUBW-Daten", "items": []}
+    rows = _filtered_buildings(postal_code, category)
+    return _breakdown(rows, lambda b: b.suitability, SUITABILITY_LABELS, SUITABILITY_STATUS)
 
 
 def forecast(req: ForecastRequest) -> ForecastResponse:
@@ -253,7 +271,8 @@ def forecast(req: ForecastRequest) -> ForecastResponse:
     new_kwp = new_mwp * 1000
 
     investment = new_kwp * INVESTMENT_EUR_PER_KWP
-    energy_kwh = new_kwp * SPECIFIC_YIELD_KWH_PER_KWP
+    specific_yield = _specific_yield()
+    energy_kwh = new_kwp * specific_yield
     value = energy_kwh * req.electricity_price_ct_per_kwh / 100
     opex = investment * OPERATING_COST_PCT / 100
     net = value - opex
@@ -280,7 +299,7 @@ def forecast(req: ForecastRequest) -> ForecastResponse:
         co2_savings_t_total=round(co2_t * req.horizon_years),
         assumptions=ForecastAssumptions(
             investment_eur_per_kwp=INVESTMENT_EUR_PER_KWP,
-            specific_yield_kwh_per_kwp=SPECIFIC_YIELD_KWH_PER_KWP,
+            specific_yield_kwh_per_kwp=round(specific_yield, 1),
             operating_cost_pct_of_investment=OPERATING_COST_PCT,
             co2_kg_per_kwh=CO2_KG_PER_KWH,
         ),

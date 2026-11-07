@@ -148,10 +148,11 @@ class BuildingProps(BaseModel):
     solar_status: SolarStatus
     installed_kwp: float = 0.0          # Summe der zugeordneten MaStR-Anlagen
     solar_sources: list[str] = []       # "mastr", "osm"
-    potential_kwp: float                # Dachpotenzial (Schätzung bis LUBW)
+    potential_kwp: float                # Dachpotenzial aus LUBW, ggf. OSM-Fallback
     potential_status: DataStatus
-    suitability: Optional[SuitabilityClass] = None  # folgt mit LUBW-Daten
-    roof_type: Optional[RoofType] = None            # folgt mit LUBW-Daten
+    potential_kwh_per_year: float = 0.0
+    suitability: Optional[SuitabilityClass] = None
+    roof_type: Optional[RoofType] = None
     postal_code: Optional[str] = None
 
 
