@@ -6,9 +6,10 @@ Start:  uvicorn app.main:app --reload --reload-dir app --timeout-keep-alive 75 -
         → ECONNRESET / „Kartendaten konnten nicht geladen werden“.
 Doku:   http://localhost:8000/docs
 
-Beim ersten Start werden MaStR- und OSM-Daten geladen und in data/cache
-abgelegt (dauert einige Minuten); danach kommen sie aus dem Cache.
-Neu laden:  python -m app.refresh
+Beim ersten Start werden die MaStR-Daten geladen und in data/cache abgelegt; danach kommen sie
+aus dem Cache. LUBW- und OSM-Daten liegen im Repository (data/), OSM wird nach Ablauf im
+Hintergrund aktualisiert.
+Neu laden:  python -m app.refresh [mastr|osm]
 """
 from __future__ import annotations
 

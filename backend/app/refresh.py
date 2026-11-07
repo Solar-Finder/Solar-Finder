@@ -1,4 +1,4 @@
-"""Lädt alle externen Daten neu in den Cache.
+"""Lädt externe Daten neu (MaStR → data/cache/, OSM → data/osm/).
 
 Aufruf (im Ordner backend/):  python -m app.refresh [mastr|osm]
 """

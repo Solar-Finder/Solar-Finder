@@ -96,8 +96,9 @@ Die Befehle gelten für PowerShell (Standard in VS Code unter Windows).
 
 ✅ Läuft, sobald `Application startup complete` erscheint → API-Doku unter http://localhost:8000/docs
 
-> **Erster Start:** Das Backend lädt die Daten aus Marktstammdatenregister und OpenStreetMap (ca. 5 Minuten)
+> **Erster Start:** Das Backend lädt die Daten aus dem Marktstammdatenregister (ca. 1 Minute)
 > und speichert sie in `data/cache/` (nicht im Git). Danach startet es in Sekunden.
+> LUBW- und OSM-Daten liegen bereits im Repository (`data/`).
 
 ### 2. Frontend (Terminal 2)
 
@@ -122,6 +123,6 @@ Die Befehle gelten für PowerShell (Standard in VS Code unter Windows).
 ### Data
 - **Marktstammdatenregister** (API): alle PV-Anlagen „In Betrieb“ in Pforzheim. Adresse/Koordinaten nur bei Anlagen > 30 kW öffentlich, kleinere nur mit PLZ → nur Großanlagen sind gebäudegenau verortbar. Cache: 1 Tag.
 - **LUBW Solarpotenzial Dachflächen** (`data/8231_…/*.shp`): Gebäude, Dachpotenzial (kWp), Jahresertrag, CO₂, Eignungsklasse, Dachform – nur Dachseiten der Klassen 1–3 zählen als Potenzial.
-- **OpenStreetMap** (Overpass-API, optional): PLZ-Grenzen, Gebäudeart, zusätzlich erfasste Dachanlagen. Cache: 30 bzw. 7 Tage. Ist Overpass nicht erreichbar, lädt das Backend automatisch den Geofabrik-Auszug (~155 MB) bzw. nutzt Nominatim + OSM-API.
+- **OpenStreetMap** (`data/osm/*.json`, optional): nur, was LUBW nicht enthält – PLZ-Grenzen, Gebäudeart, zusätzlich erfasste Dachanlagen. Der Stand liegt im Git und wird nach 30 Tagen (Solaranlagen: 7 Tage) automatisch im Hintergrund über die Overpass-API erneuert; ist Overpass nicht erreichbar, bleibt der vorhandene Stand. Von Hand: `python -m app.refresh osm`.
 - Spezifischer Ertrag (kWh/kWp) und CO₂-Faktor (kg/kWh) stammen aus den LUBW-Daten. Investition, Betriebskosten, Strompreis und Stromverbrauch sind noch Beispielwerte.
 - Alle Formeln und die Spaltenbedeutung: [`docs/datenmodell.md`](docs/datenmodell.md)

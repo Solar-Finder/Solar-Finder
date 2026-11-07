@@ -7,8 +7,12 @@ Ablauf beim ersten Zugriff (danach im Speicher), Details in docs/datenmodell.md:
 4. MaStR-Anlagen mit Koordinaten (nur > 30 kW öffentlich) und in OSM erfasste
    Dachanlagen → Gebäude (enthaltend oder nächstes im Umkreis)
 
-OSM ist optional: Ist Overpass nicht erreichbar und kein Cache vorhanden, bleiben PLZ und
+Quellenpriorität: Alles, was der LUBW-Datensatz enthält (Umriss, Grundfläche, Dachform, Potenzial,
+Eignung), kommt aus LUBW. OSM ergänzt nur PLZ, Kategorie/Name und zusätzlich erfasste Anlagen.
+
+OSM ist optional: Fehlt der Datenstand in data/osm/ und ist Overpass nicht erreichbar, bleiben PLZ und
 Kategorie leer bzw. „other“. Die Potenzial- und Bestandssummen sind davon nicht betroffen.
+Wird ein abgelaufener OSM-Stand im Hintergrund erneuert, baut sich das Modell danach neu auf.
 """
 from __future__ import annotations
 
@@ -23,6 +27,7 @@ from shapely import STRtree
 from shapely.geometry import Point, mapping, shape
 
 from .sources import lubw, mastr, osm
+from .sources.cache import on_background_refresh
 
 log = logging.getLogger(__name__)
 
@@ -126,6 +131,18 @@ def reset_model() -> None:
     global _model
     with _lock:
         _model = None
+
+
+def _rebuild_after_refresh(name: str) -> None:
+    """Neues Modell aufbauen und erst dann austauschen – Anfragen nutzen bis dahin das alte."""
+    global _model
+    log.info("%s aktualisiert – baue Datenmodell neu auf", name)
+    new = _build()
+    with _lock:
+        _model = new
+
+
+on_background_refresh(_rebuild_after_refresh)
 
 
 def is_roof_unit(u: dict) -> bool:

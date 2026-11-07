@@ -1,8 +1,14 @@
-"""OpenStreetMap: PLZ-Grenzen, Gebäudegrundrisse, erfasste Solaranlagen.
+"""OpenStreetMap: nur, was der LUBW-Datensatz nicht enthält.
 
-Primär über die Overpass-API. Ist Overpass nicht erreichbar (z. B. durch eine Firewall blockiert):
-- PLZ-Grenzen über Nominatim + OSM-API (`relation/{id}/full`)
-- Gebäude und Solaranlagen aus dem Geofabrik-Auszug (siehe geofabrik.py)
+LUBW liefert Gebäudeumrisse, Dachform und Potenzial – OSM ergänzt lediglich
+- PLZ-Grenzen (LUBW hat keine PLZ),
+- Gebäudeart/Kategorie und Name (Tags der OSM-Gebäude; deren Umriss dient nur der Zuordnung),
+- in OSM erfasste Solaranlagen (Bestand neben dem MaStR).
+
+Der Datenstand liegt im Git unter data/osm/ und wird nach Ablauf (PLZ/Gebäude 30 Tage,
+Solaranlagen 7 Tage) im Hintergrund über die Overpass-API erneuert. Ist Overpass nicht erreichbar,
+bleibt der vorhandene Stand in Gebrauch (PLZ-Grenzen ersatzweise über Nominatim + OSM-API).
+Von Hand neu laden:  python -m app.refresh osm
 
 Daten © OpenStreetMap-Mitwirkende, ODbL.
 """
@@ -17,13 +23,19 @@ import urllib.parse
 import urllib.request
 from datetime import date
 
-from shapely.geometry import LineString, mapping, shape
+from shapely.geometry import LineString, mapping
 from shapely.ops import polygonize, unary_union
 
-from . import geofabrik
-from .cache import DAY, cached
+from .cache import DATA_DIR, DAY, cached
 
 log = logging.getLogger(__name__)
+
+OSM_DIR = DATA_DIR / "osm"
+MAX_AGE = {"osm_postal_areas": 30 * DAY, "osm_buildings": 30 * DAY, "osm_solar": 7 * DAY}
+
+
+def _load(name: str, fetch, force: bool) -> dict:
+    return cached(name, MAX_AGE[name], fetch, force=force, directory=OSM_DIR, background=True)
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 USER_AGENT = "pv-prognose-pforzheim/0.2 (Studienprojekt)"
@@ -161,39 +173,15 @@ def _fetch_postal_areas() -> dict:
 
 
 def load_postal_areas(force: bool = False) -> dict:
-    return cached("osm_postal_areas", 30 * DAY, _fetch_postal_areas, force=force)
+    return _load("osm_postal_areas", _fetch_postal_areas, force)
 
 
 # ---------------- Gebäude ----------------
-_BUILDING_TAGS = ("building", "amenity", "shop", "office", "industrial", "building:use", "roof:shape", "name")
-
-
-def _city_area():
-    """Vereinigung der PLZ-Gebiete = Pforzheim (Filterfläche für den Geofabrik-Auszug)."""
-    return unary_union([shape(a["geometry"]) for a in load_postal_areas()["areas"]])
-
-
-def _buildings_geofabrik() -> dict:
-    out = []
-    for osm_id, tags, geom in geofabrik.buildings(_city_area()):
-        out.append({
-            "id": osm_id,
-            "tags": {k: tags[k] for k in _BUILDING_TAGS if k in tags},
-            "geometry": _round_geom(mapping(geom.geoms[0] if len(geom.geoms) == 1 else geom)),
-        })
-    log.info("Geofabrik: %d Gebäude", len(out))
-    return {"retrieved_at": geofabrik.data_date(), "source": "geofabrik", "buildings": out}
+# Nur Tags für Kategorie und Name. Umriss und Dachform kommen aus LUBW (roof:shape wird nicht geholt).
+BUILDING_TAGS = ("building", "amenity", "shop", "office", "industrial", "building:use", "name")
 
 
 def _fetch_buildings() -> dict:
-    try:
-        return _fetch_buildings_overpass()
-    except (urllib.error.URLError, TimeoutError, OSError):
-        log.warning("Overpass fehlgeschlagen – lade Gebäude aus dem Geofabrik-Auszug")
-        return _buildings_geofabrik()
-
-
-def _fetch_buildings_overpass() -> dict:
     # Pro PLZ-Gebiet abfragen – eine Abfrage für die ganze Stadt ist Overpass zu groß
     elements, seen = [], set()
     for plz in POSTAL_CODES:
@@ -221,39 +209,18 @@ def _fetch_buildings_overpass() -> dict:
             geom = _round_geom(mapping(poly))
         out.append({
             "id": f"{e['type'][0]}{e['id']}",
-            "tags": {k: tags[k] for k in _BUILDING_TAGS if k in tags},
+            "tags": {k: tags[k] for k in BUILDING_TAGS if k in tags},
             "geometry": geom,
         })
-    return {"retrieved_at": date.today().isoformat(), "buildings": out}
+    return {"retrieved_at": date.today().isoformat(), "source": "overpass", "buildings": out}
 
 
 def load_buildings(force: bool = False) -> dict:
-    return cached("osm_buildings", 30 * DAY, _fetch_buildings, force=force)
+    return _load("osm_buildings", _fetch_buildings, force)
 
 
 # ---------------- In OSM erfasste Solaranlagen ----------------
-def _solar_geofabrik() -> dict:
-    out = []
-    for osm_id, tags, geom in geofabrik.solar(_city_area()):
-        c = geom if geom.geom_type == "Point" else geom.representative_point()
-        out.append({
-            "id": osm_id, "lon": _r(c.x), "lat": _r(c.y),
-            "location": tags.get("location"),
-            "output": tags.get("generator:output:electricity"),
-        })
-    log.info("Geofabrik: %d Solaranlagen", len(out))
-    return {"retrieved_at": geofabrik.data_date(), "source": "geofabrik", "solar": out}
-
-
 def _fetch_solar() -> dict:
-    try:
-        return _fetch_solar_overpass()
-    except (urllib.error.URLError, TimeoutError, OSError):
-        log.warning("Overpass fehlgeschlagen – lade Solaranlagen aus dem Geofabrik-Auszug")
-        return _solar_geofabrik()
-
-
-def _fetch_solar_overpass() -> dict:
     d = _overpass(f'[out:json][timeout:180];{_PLZ_AREA}nwr["generator:source"="solar"](area.plz);out center tags;')
     out = []
     for e in d["elements"]:
@@ -268,8 +235,8 @@ def _fetch_solar_overpass() -> dict:
             "location": t.get("location"),
             "output": t.get("generator:output:electricity"),
         })
-    return {"retrieved_at": date.today().isoformat(), "solar": out}
+    return {"retrieved_at": date.today().isoformat(), "source": "overpass", "solar": out}
 
 
 def load_solar(force: bool = False) -> dict:
-    return cached("osm_solar", 7 * DAY, _fetch_solar, force=force)
+    return _load("osm_solar", _fetch_solar, force)

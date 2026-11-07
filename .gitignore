@@ -1,2 +1,2 @@
-# Heruntergeladene Daten (MaStR, OSM, Geofabrik) – werden automatisch neu geladen
+# Heruntergeladene Daten (MaStR) – werden automatisch neu geladen. OSM-Stand liegt in data/osm/ (im Git).
 data/cache/

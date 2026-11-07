@@ -14,8 +14,12 @@ Dachpotenzials mehr aus der Gebäudegrundfläche.
 |---|---|---|---|
 | **LUBW Solarpotenzial Dachseiten** (Herkunft: „LUBW, Geoplex GIS GmbH“, Jahr 2025, Höhendaten 2016–2023) | `data/8231_Solarpotenzial_Dachseiten_Pforzheim_Stadt/*.shp` (EPSG:25832, 77 645 Dachseiten, 37 522 Gebäude, Stadtkreis Pforzheim 08231) | Gebäude, Dachpotenzial (kWp), Jahresertrag (kWh), CO₂, Eignungsklasse, Dachform | verified |
 | **Marktstammdatenregister** | API, Cache 1 Tag | installierte Anlagen (Leistung, Typ, PLZ; Koordinaten nur > 30 kW) | verified |
-| **OpenStreetMap** | Overpass, Cache 30/7 Tage. Ist Overpass nicht erreichbar (10-s-Verbindungstest): PLZ-Grenzen über Nominatim + OSM-API (`relation/{id}/full`), Gebäude und Solaranlagen aus dem täglich aktualisierten [Geofabrik-Auszug](https://download.geofabrik.de/europe/germany/baden-wuerttemberg/karlsruhe-regbez.html) Regierungsbezirk Karlsruhe (~155 MB, `data/cache/geofabrik/`, höchstens 1× pro Tag neu geladen), gefiltert auf die PLZ-Gebiete | PLZ-Grenzen, Gebäudeart (Kategorie), Name, zusätzlich erfasste Dachanlagen | verified |
+| **OpenStreetMap** | `data/osm/*.json` (im Git). Nach Ablauf (PLZ-Grenzen/Gebäude 30 Tage, Solaranlagen 7 Tage, gemessen am Feld `retrieved_at`) im Hintergrund über Overpass erneuert, danach wird das Modell neu aufgebaut. Ist Overpass nicht erreichbar (10-s-Verbindungstest), bleibt der vorhandene Stand; PLZ-Grenzen ersatzweise über Nominatim + OSM-API (`relation/{id}/full`) | nur, was LUBW nicht enthält: PLZ-Grenzen, Gebäudeart (Kategorie), Name, zusätzlich erfasste Dachanlagen | verified |
 | Wirtschaftlichkeit | Konstanten in `data_service.py` | Investition €/kWp, Betriebskosten, Strompreis, Stromverbrauch der Stadt | **example** – keine Quelle im Projekt |
+
+**Quellenpriorität:** Was der LUBW-Datensatz enthält, kommt aus LUBW – Gebäudeumriss, Grundfläche,
+Dachform, Potenzial, Ertrag, CO₂, Eignung. OSM-Gebäude dienen nur dazu, einem LUBW-Gebäude Kategorie
+und Name zuzuordnen; ihr Umriss und `roof:shape` werden nicht übernommen.
 
 ## 2. LUBW-Shapefile: verwendete Spalten
 
