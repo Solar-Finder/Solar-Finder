@@ -70,10 +70,22 @@ Design:
 ## Techstack
 
 ### Frontend
-- NExtJs
+- Next.js (JavaScript) in `frontend/` – Seiten „Rechner“ (`/`) und „Karte“ (`/karte`), Karte mit Leaflet
+- Design: Figma-Mockups + Corporate Design Stadt Pforzheim (Tokens in `frontend/app/globals.css`)
 
 ### Backend
-- Python
+- Python / FastAPI in `backend/` – aktuell mit Beispieldaten (`backend/app/data_service.py`)
+- Schnittstellen-Vertrag: `docs/api/openapi.yaml`, interaktiv unter http://localhost:8000/docs
+
+### Lokal starten
+```bash
+cd backend && python -m venv .venv && .venv/Scripts/pip install -r requirements.txt
+.venv/Scripts/python -m uvicorn app.main:app --reload --port 8000
+```
+```bash
+cd frontend && npm install && npm run dev
+```
+Danach http://localhost:3000 öffnen (das Frontend leitet `/api/*` an das Backend auf Port 8000 weiter).
 
 ### Data
 - APIs

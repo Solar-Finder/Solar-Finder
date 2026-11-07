@@ -1,0 +1,78 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  padding: 0 var(--page-gutter);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: var(--surface-muted);
+}
+
+.city {
+  font-size: 17px;
+  color: var(--text);
+}
+
+.sep {
+  font-size: 18px;
+  color: var(--text-subtle);
+}
+
+.topic {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.nav {
+  display: flex;
+  gap: 6px;
+}
+
+.tab {
+  padding: 8px 14px;
+  border-radius: 100px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.tab:hover {
+  background: var(--border);
+}
+
+.tabActive {
+  background: var(--pf-blue);
+  color: #fff;
+  font-weight: 600;
+}
+
+.tabActive:hover {
+  background: var(--pf-blue-700);
+}
+
+@media (max-width: 520px) {
+  .topic,
+  .sep {
+    display: none;
+  }
+}

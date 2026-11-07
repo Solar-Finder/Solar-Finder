@@ -1,0 +1,292 @@
+openapi: 3.1.0
+info:
+  title: PV-Prognose Pforzheim – Backend API
+  version: 0.2.0
+  description: |
+    Vertrag zwischen Python-Backend (FastAPI) und JavaScript-Frontend (Next.js).
+    Abgestimmt auf die freigegebenen Figma-Mockups „Solar-Ausbaurechner“ und „Solarkarte“.
+
+    Konventionen:
+    - Einheiten stehen im Feldnamen (`_mwp`, `_kwp`, `_pct`, `_eur`, `_ct_per_kwh`, `_mwh`, `_t`).
+    - Geodaten als GeoJSON in WGS84 (EPSG:4326), Koordinaten `[lon, lat]`.
+    - `data_status: example` → Frontend kennzeichnet Werte als Beispiel.
+    - Mehrfach-Filter als wiederholte Query-Parameter (`?suitability=1&suitability=2`).
+
+    Maßgeblich für Details sind die Pydantic-Modelle in `backend/app/schemas.py`;
+    die interaktive Doku liegt unter `http://localhost:8000/docs`.
+servers:
+  - url: http://localhost:8000/api/v1
+
+paths:
+  /meta:
+    get:
+      tags: [status]
+      summary: Filteroptionen, Reglerbereiche, Strompreis-Ausgangswert, Datenquellen
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Meta" } } } }
+
+  /status:
+    get:
+      tags: [status]
+      summary: PV-Übersicht (installiert, Potenzial, gedeckt)
+      parameters: [{ $ref: "#/components/parameters/postalCode" }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Status" } } } }
+
+  /map/postal-areas:
+    get:
+      tags: [map]
+      summary: PLZ-Gebiete mit installierter Leistung, Potenzial und Auslastung
+      parameters: [{ $ref: "#/components/parameters/postalCode" }]
+      responses:
+        "200": { description: GeoJSON, content: { application/geo+json: { schema: { $ref: "#/components/schemas/PostalAreaCollection" } } } }
+
+  /map/buildings:
+    get:
+      tags: [map]
+      summary: Gebäude mit Dachflächenpotenzial (Polygone)
+      parameters:
+        - $ref: "#/components/parameters/bbox"
+        - $ref: "#/components/parameters/postalCode"
+        - $ref: "#/components/parameters/category"
+        - $ref: "#/components/parameters/suitability"
+        - { name: only_free_potential, in: query, schema: { type: boolean, default: false } }
+      responses:
+        "200": { description: GeoJSON, content: { application/geo+json: { schema: { $ref: "#/components/schemas/BuildingCollection" } } } }
+
+  /map/installations:
+    get:
+      tags: [map]
+      summary: Bestehende PV-Anlagen (Punkte)
+      parameters:
+        - $ref: "#/components/parameters/bbox"
+        - $ref: "#/components/parameters/postalCode"
+        - $ref: "#/components/parameters/category"
+        - { name: max_power_kwp, in: query, schema: { type: number, default: 30 } }
+      responses:
+        "200": { description: GeoJSON, content: { application/geo+json: { schema: { $ref: "#/components/schemas/InstallationCollection" } } } }
+
+  /stats/roof-types:
+    get:
+      tags: [stats]
+      summary: Dachformen (Anteil nach Anzahl)
+      parameters: &statsParams
+        - $ref: "#/components/parameters/postalCode"
+        - $ref: "#/components/parameters/category"
+        - $ref: "#/components/parameters/suitability"
+      responses: &statsResp
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Breakdown" } } } }
+  /stats/building-categories:
+    get: { tags: [stats], summary: Gebäudekategorien, parameters: *statsParams, responses: *statsResp }
+  /stats/suitability-classes:
+    get: { tags: [stats], summary: Eignungsklassen, parameters: *statsParams, responses: *statsResp }
+
+  /forecast:
+    post:
+      tags: [forecast]
+      summary: Prognose für den zusätzlichen Ausbau
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ForecastRequest" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ForecastResponse" } } } }
+        "422": { description: Ungültige Eingabe }
+
+components:
+  parameters:
+    bbox: { name: bbox, in: query, description: "minLon,minLat,maxLon,maxLat", schema: { type: string } }
+    postalCode: { name: postal_code, in: query, schema: { type: string, example: "75172" } }
+    category:
+      name: category
+      in: query
+      style: form
+      explode: true
+      schema: { type: array, items: { $ref: "#/components/schemas/BuildingCategory" } }
+    suitability:
+      name: suitability
+      in: query
+      style: form
+      explode: true
+      schema: { type: array, items: { $ref: "#/components/schemas/SuitabilityClass" } }
+
+  schemas:
+    DataStatus: { type: string, enum: [example, verified] }
+    BuildingCategory: { type: string, enum: [residential, public, commercial, agricultural] }
+    SuitabilityClass: { type: integer, enum: [1, 2, 3, 6], description: LUBW-Eignungsklasse }
+    RoofType: { type: string, enum: [gable, flat, shed, other] }
+    LabeledOption:
+      type: object
+      required: [value, label]
+      properties: { value: { type: [string, integer] }, label: { type: string } }
+    Range:
+      type: object
+      required: [min, max, step, default]
+      properties: { min: { type: number }, max: { type: number }, step: { type: number }, default: { type: number } }
+
+    Meta:
+      type: object
+      required: [data_status, categories, suitability_classes, roof_types, pv_views, postal_codes, sliders, electricity_price, sources, data_as_of]
+      properties:
+        data_status: { $ref: "#/components/schemas/DataStatus" }
+        categories: { type: array, items: { $ref: "#/components/schemas/LabeledOption" } }
+        suitability_classes: { type: array, items: { $ref: "#/components/schemas/LabeledOption" } }
+        roof_types: { type: array, items: { $ref: "#/components/schemas/LabeledOption" } }
+        pv_views: { type: array, items: { $ref: "#/components/schemas/LabeledOption" }, description: "potential | existing" }
+        postal_codes: { type: array, items: { $ref: "#/components/schemas/LabeledOption" } }
+        sliders:
+          type: object
+          properties:
+            target_utilization_pct: { $ref: "#/components/schemas/Range" }
+            horizon_years: { $ref: "#/components/schemas/Range" }
+            electricity_price_ct_per_kwh: { $ref: "#/components/schemas/Range" }
+        electricity_price:
+          type: object
+          required: [value_ct_per_kwh, source, is_example]
+          properties: { value_ct_per_kwh: { type: number }, source: { type: string }, is_example: { type: boolean } }
+        sources:
+          type: array
+          items: { type: object, properties: { name: { type: string }, url: { type: string }, retrieved_at: { type: string, format: date } } }
+        data_as_of: { type: string, format: date }
+
+    Status:
+      type: object
+      required: [installed_power_mwp, potential_power_mwp, utilization_pct, installation_count, source, data_status, data_as_of]
+      properties:
+        installed_power_mwp: { type: number }
+        potential_power_mwp: { type: number }
+        utilization_pct: { type: number }
+        installation_count: { type: integer }
+        source: { type: string }
+        data_status: { $ref: "#/components/schemas/DataStatus" }
+        data_as_of: { type: string, format: date }
+
+    PostalAreaCollection:
+      type: object
+      properties:
+        type: { const: FeatureCollection }
+        features:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { const: Feature }
+              id: { type: string }
+              geometry: { type: object }
+              properties:
+                type: object
+                required: [postal_code, installed_power_mwp, potential_power_mwp, utilization_pct]
+                properties:
+                  postal_code: { type: string }
+                  name: { type: string }
+                  installed_power_mwp: { type: number }
+                  potential_power_mwp: { type: number }
+                  utilization_pct: { type: number }
+                  label_point: { type: array, items: { type: number }, description: "[lon, lat] für die Beschriftung" }
+
+    BuildingCollection:
+      type: object
+      properties:
+        type: { const: FeatureCollection }
+        features:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { const: Feature }
+              id: { type: string }
+              geometry: { type: object }
+              properties:
+                type: object
+                required: [category, suitability, roof_type, potential_kwp, installed_kwp, postal_code]
+                properties:
+                  category: { $ref: "#/components/schemas/BuildingCategory" }
+                  suitability: { $ref: "#/components/schemas/SuitabilityClass" }
+                  roof_type: { $ref: "#/components/schemas/RoofType" }
+                  roof_area_m2: { type: number }
+                  potential_kwp: { type: number }
+                  potential_yield_kwh_per_year: { type: number }
+                  installed_kwp: { type: number, description: 0 = freies Potenzial }
+                  postal_code: { type: string }
+
+    InstallationCollection:
+      type: object
+      properties:
+        type: { const: FeatureCollection }
+        features:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { const: Feature }
+              id: { type: string, description: MaStR-Nummer }
+              geometry: { type: object, description: Point }
+              properties:
+                type: object
+                required: [power_kwp, postal_code]
+                properties:
+                  power_kwp: { type: number }
+                  commissioned_on: { type: [string, "null"], format: date }
+                  postal_code: { type: string }
+                  category: { $ref: "#/components/schemas/BuildingCategory" }
+
+    Breakdown:
+      type: object
+      required: [basis, data_status, items]
+      properties:
+        basis: { const: count }
+        data_status: { $ref: "#/components/schemas/DataStatus" }
+        items:
+          type: array
+          items:
+            type: object
+            required: [key, label, building_count, potential_kwp, share_pct]
+            properties:
+              key: { type: string }
+              label: { type: string }
+              building_count: { type: integer }
+              potential_kwp: { type: number }
+              share_pct: { type: number }
+
+    ForecastRequest:
+      type: object
+      required: [target_utilization_pct, horizon_years, electricity_price_ct_per_kwh]
+      properties:
+        target_utilization_pct: { type: number, minimum: 0, maximum: 100 }
+        horizon_years: { type: integer, minimum: 1, maximum: 30 }
+        electricity_price_ct_per_kwh: { type: number, minimum: 0 }
+
+    ForecastResponse:
+      type: object
+      description: Alle Finanz-, Energie- und CO₂-Werte beziehen sich nur auf den zusätzlichen Ausbau.
+      properties:
+        data_status: { $ref: "#/components/schemas/DataStatus" }
+        existing_power_mwp: { type: number }
+        potential_power_mwp: { type: number }
+        target_power_mwp: { type: number }
+        new_power_mwp: { type: number }
+        investment_eur: { type: number }
+        profit_eur: { type: number, description: Kumulierter Saldo am Ende des Zeitraums }
+        electricity_value_eur_per_year: { type: number }
+        operating_cost_eur_per_year: { type: number }
+        amortization_years: { type: [number, "null"] }
+        energy_per_year_mwh: { type: number }
+        energy_total_mwh: { type: number }
+        consumption_gwh_per_year: { type: number }
+        solar_share_pct: { type: number }
+        co2_savings_t_per_year: { type: number }
+        co2_savings_t_total: { type: number }
+        assumptions:
+          type: object
+          properties:
+            investment_eur_per_kwp: { type: number }
+            specific_yield_kwh_per_kwp: { type: number }
+            operating_cost_pct_of_investment: { type: number }
+            co2_kg_per_kwh: { type: number }
+        timeline:
+          type: array
+          items:
+            type: object
+            properties:
+              year_index: { type: integer }
+              year: { type: integer }
+              cumulative_balance_eur: { type: number }
