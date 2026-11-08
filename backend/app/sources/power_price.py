@@ -1,50 +1,68 @@
-"""Strompreis: Day-Ahead-Börsenstrompreis über die InfraNode-API.
+"""Strompreis: Jahresmittel des Day-Ahead-Großhandelspreises DE/LU (SMARD).
 
-Quelle der Daten: Bundesnetzagentur | SMARD.de (CC BY 4.0), abgerufen über
-https://infranode.dev/api/v1/cities/pforzheim/power-price – laut API-Dokumentation der
-„Day-ahead-Großhandelspreis der Gebotszone DE/LU als Tageswert in EUR/MWh (bundesweit,
-für alle Städte identisch)“. Es ist also ein Großhandelspreis, kein Endkundenpreis.
+Quelle: Bundesnetzagentur | SMARD.de (CC BY 4.0), Chart-Daten-Schnittstelle
+https://www.smard.de/app/chart_data/4169/DE-LU/… – Filter 4169 = „Marktpreis Deutschland/Luxemburg“,
+Auflösung „year“ = Mittelwert über alle Stunden des Kalenderjahres in €/MWh.
 
-Cache: data/cache/power_price.json, 1 Tag. Schlägt der Abruf fehl, bleibt der letzte Stand.
+Verwendet wird das letzte **abgeschlossene** Kalenderjahr: ein Tageswert schwankt zu stark
+(Spitzen und negative Preise), das laufende Jahr ist noch unvollständig.
+Es ist ein Großhandelspreis, kein Endkundenpreis.
+
+Cache: data/cache/power_price_year.json, 7 Tage. Schlägt der Abruf fehl, bleibt der letzte Stand.
 """
 from __future__ import annotations
 
 import json
 import logging
 import urllib.request
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 from .cache import DAY, cached
 
 log = logging.getLogger(__name__)
 
-URL = "https://infranode.dev/api/v1/cities/pforzheim/power-price"
-USER_AGENT = "pv-prognose-pforzheim/0.2 (Studienprojekt)"
+BASE = "https://www.smard.de/app/chart_data/4169/DE-LU"
+URL = "https://www.smard.de/home/marktdaten"  # Quellenangabe für die Oberfläche
+USER_AGENT = "pv-prognose-pforzheim/0.3 (Studienprojekt)"
+ATTRIBUTION = "Bundesnetzagentur | SMARD.de"
+
+
+def _get(url: str) -> dict:
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.load(r)
+
+
+def _year_of(ts_ms: int) -> int:
+    # Zeitstempel = Jahresbeginn in deutscher Zeit (z. B. 31.12. 23:00 UTC) → ein paar Stunden addieren
+    return (datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc) + timedelta(hours=12)).year
 
 
 def _fetch() -> dict:
-    req = urllib.request.Request(URL, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        body = json.load(r)
-    status = body.get("meta", {}).get("source_status")
-    if status != "ok":
-        raise ValueError(f"InfraNode power-price: source_status={status!r}")
-    d = body["data"]
-    pl = d["payload"]
-    if pl.get("unit") != "EUR/MWh":
-        raise ValueError(f"Unerwartete Einheit: {pl.get('unit')!r}")
-    eur_mwh = float(pl["value"])
-    log.info("Strompreis (SMARD Day-Ahead, %s): %.2f €/MWh", pl.get("series_date"), eur_mwh)
+    stamps = _get(f"{BASE}/index_year.json")["timestamps"]
+    this_year = date.today().year
+    for ts in sorted(stamps, reverse=True):
+        year = _year_of(ts)
+        if year >= this_year:  # laufendes Jahr ist noch nicht abgeschlossen
+            continue
+        series = _get(f"{BASE}/4169_DE-LU_year_{ts}.json")["series"]
+        values = [v for t, v in series if t == ts and v is not None]
+        if values:
+            eur_mwh = float(values[0])
+            break
+    else:
+        raise ValueError("SMARD: kein Jahresmittelwert für ein abgeschlossenes Jahr gefunden")
+    log.info("Strompreis (SMARD Day-Ahead, Jahresmittel %d): %.2f €/MWh", year, eur_mwh)
     return {
         "retrieved_at": date.today().isoformat(),
-        "series_date": pl.get("series_date"),
+        "year": year,
         "eur_per_mwh": eur_mwh,
         "ct_per_kwh": round(eur_mwh / 10, 2),  # 1 €/MWh = 0,1 ct/kWh
-        "region": pl.get("region"),
-        "attribution": (d.get("attribution") or {}).get("text", "Bundesnetzagentur | SMARD.de"),
-        "license": d.get("license_id"),
+        "region": "DE-LU",
+        "attribution": ATTRIBUTION,
+        "license": "cc_by_4_0",
     }
 
 
 def load(force: bool = False) -> dict:
-    return cached("power_price", DAY, _fetch, force=force)
+    return cached("power_price_year", 7 * DAY, _fetch, force=force)

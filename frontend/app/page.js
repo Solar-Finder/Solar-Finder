@@ -153,13 +153,13 @@ function Configuration({ meta, config, forecast, set, onReset }) {
               <>
                 <Assumption>Quelle: {price.source}, Lizenz CC BY 4.0</Assumption>
                 <Assumption>
-                  Abruf über die InfraNode-API (infranode.dev/api/v1/cities/pforzheim/power-price), einmal täglich
-                  aktualisiert
+                  Abruf über die SMARD-Marktdaten (smard.de), Jahresmittel des letzten abgeschlossenen Kalenderjahres
                 </Assumption>
               </>
             )}
             <Meaning>
-              Day-Ahead-Großhandelspreis der Gebotszone DE/LU als Tageswert, kein Endkundenpreis. Der Regler startet mit
+              Day-Ahead-Großhandelspreis der Gebotszone DE/LU, gemittelt über alle Stunden des Jahres – kein
+              Endkundenpreis. Der Jahresmittelwert gleicht die starken Tagesschwankungen aus. Der Regler startet mit
               diesem Wert und lässt sich frei anpassen; „Zurücksetzen“ stellt ihn wieder her. In der Rechnung steigt der
               Preis ab dem 2. Jahr um 0,6 ct/kWh pro Jahr.
             </Meaning>
@@ -199,7 +199,7 @@ function Forecasts({ forecast: f, years: horizon, price }) {
           note="Durchschnittliche Jahresproduktion" />
         <Kpi icon="timer" title="Amortisationsdauer" info={info.amortization}
           value={f && (f.amortization_years == null ? "nicht erreicht" : `${fmtFlex(f.amortization_years, 1)} Jahre`)}
-          note={f && f.amortization_years == null ? "Stromwert deckt die Investition nicht" : "Ab dann ist die Investition inkl. Instandhaltung gedeckt"} />
+          note={f && f.amortization_years == null ? "Stromwert deckt die Anschaffung nicht" : "Ab dann sind die Anschaffungskosten gedeckt"} />
         <Kpi icon="leaf" title={`CO₂-Einsparung in ${years} Jahren`} value={f && `${fmtInt(f.co2_savings_t_total)} t`} info={info.co2}
           note={f && `${fmtInt(f.co2_savings_t_per_year)} t pro Jahr · modellhaft`} />
       </div>
@@ -226,6 +226,12 @@ function forecastInfo(f, years, price) {
   const ex = (key) => (a?.status?.[key] === "example" ? " (Beispielwert)" : "");
   const n = years ?? "Jahre";
   const zubau = <Assumption>Zubau = Zielauslastung × Dachpotenzial − Bestand (Gebäudesolaranlagen laut MaStR)</Assumption>;
+  const deg = fmtFlex(a?.degradation_pct_per_year ?? 0.25, 2);
+  const alterung = (
+    <Assumption>
+      Alterung: Ertrag im Jahr t = Ertrag im 1. Jahr × (1 − {deg} %)^(t − 1) (Energieatlas BW)
+    </Assumption>
+  );
   return {
     investment: (
       <>
@@ -239,8 +245,8 @@ function forecastInfo(f, years, price) {
         </Assumption>
         {zubau}
         <Meaning>
-          Gesamte Kosten des Ausbaus im Zeitraum. Gewinn und Amortisation rechnen nur noch den Stromwert dagegen – die
-          Instandhaltung wird dort nicht ein zweites Mal abgezogen.
+          Gesamte Kosten des Ausbaus im Zeitraum; der Gewinn zieht sie vom Stromwert ab. Die Amortisation rechnet nur mit
+          der Anschaffung.
         </Meaning>
       </>
     ),
@@ -248,27 +254,29 @@ function forecastInfo(f, years, price) {
       <>
         <Formula>Gewinn = Σ Jahr 1…{n} Stromwert − Investition (inkl. Instandhaltung)</Formula>
         <Assumption>
-          Stromwert im Jahr t = Stromerzeugung pro Jahr × Strompreis im Jahr t
+          Stromwert im Jahr t = Stromerzeugung im Jahr t × Strompreis im Jahr t
         </Assumption>
         <Assumption>
           Strompreis im Jahr t = {price != null ? `${fmtFlex(price, 1)} ct/kWh` : "Ausgangswert"} +{" "}
           {fmtFlex(a?.price_increase_ct_per_kwh_per_year ?? 0.6, 1)} ct/kWh × (t − 1) (Energieatlas BW)
         </Assumption>
+        {alterung}
         <Meaning>
-          Zeigt, ob sich der Ausbau im Zeitraum wirtschaftlich lohnt. Vereinfacht: ohne Zinsen, Steuern, Förderung und
-          Alterung der Module.
+          Zeigt, ob sich der Ausbau im Zeitraum wirtschaftlich lohnt. Vereinfacht: ohne Zinsen, Steuern und Förderung.
         </Meaning>
       </>
     ),
     energyTotal: (
       <>
-        <Formula>Gesamte Stromerzeugung = Stromerzeugung pro Jahr × {n}</Formula>
-        <Meaning>Gesamter Beitrag des Zubaus im Zeitraum; der Jahresertrag wird als gleichbleibend angenommen.</Meaning>
+        <Formula>Gesamte Stromerzeugung = Σ Jahr 1…{n} Stromerzeugung im Jahr t</Formula>
+        {alterung}
+        <Meaning>Gesamter Beitrag des Zubaus im Zeitraum; durch die Alterung sinkt der Ertrag leicht von Jahr zu Jahr.</Meaning>
       </>
     ),
     energyYear: (
       <>
-        <Formula>Stromerzeugung pro Jahr = Zubau × spezifischer Ertrag</Formula>
+        <Formula>Stromerzeugung pro Jahr = Gesamte Stromerzeugung ÷ {n} (Durchschnitt)</Formula>
+        <Assumption>Stromerzeugung im 1. Jahr = Zubau × spezifischer Ertrag, danach Alterung um {deg} % pro Jahr</Assumption>
         <Assumption>
           Spezifischer Ertrag: {a ? `${fmtInt(a.specific_yield_kwh_per_kwp)} kWh/kWp` : "–"} (LUBW, Mittel aller
           PV-geeigneten Dachseiten)
@@ -279,24 +287,21 @@ function forecastInfo(f, years, price) {
     ),
     amortization: (
       <>
-        <Formula>Amortisationsdauer = Zeitpunkt, ab dem Σ Stromwert ≥ Investition (inkl. Instandhaltung)</Formula>
+        <Formula>Amortisationsdauer = Zeitpunkt, ab dem Σ Stromwert ≥ Anschaffungskosten</Formula>
+        <Assumption>Gerechnet nur mit der Anschaffung – die Instandhaltung zählt hier nicht</Assumption>
         <Assumption>
-          Der Strompreis steigt jährlich um {fmtFlex(a?.price_increase_ct_per_kwh_per_year ?? 0.6, 1)} ct/kWh, der Stromwert
-          wächst also mit jedem Jahr; innerhalb des Jahres anteilig gerechnet
-        </Assumption>
-        <Assumption>
-          Da die Instandhaltung für alle {n} Jahre in der Investition steckt, hängt die Amortisation auch vom
-          Betrachtungszeitraum ab
+          Der Strompreis steigt jährlich um {fmtFlex(a?.price_increase_ct_per_kwh_per_year ?? 0.6, 1)} ct/kWh, der Ertrag
+          sinkt durch Alterung um {deg} % pro Jahr; innerhalb des Jahres anteilig gerechnet
         </Assumption>
         <Meaning>
-          Ab diesem Zeitpunkt ist die Investition zurückverdient. Liegt sie unter dem Betrachtungszeitraum, entsteht
-          Gewinn; je kürzer, desto geringer das finanzielle Risiko.
+          Ab diesem Zeitpunkt sind die Anschaffungskosten zurückverdient. Je kürzer, desto geringer das finanzielle
+          Risiko.
         </Meaning>
       </>
     ),
     co2: (
       <>
-        <Formula>CO₂-Einsparung = Stromerzeugung pro Jahr × CO₂-Faktor × {n}</Formula>
+        <Formula>CO₂-Einsparung = Gesamte Stromerzeugung ({n} Jahre, mit Alterung) × CO₂-Faktor</Formula>
         <Assumption>
           CO₂-Faktor: {a ? `${fmtFlex(a.co2_kg_per_kwh, 3)} kg/kWh` : "–"} (aus dem LUBW-Datensatz: CO₂-Einsparung ÷
           Ertrag)
@@ -316,19 +321,23 @@ function BalanceInfo({ forecast: f, config }) {
   const last = f?.timeline?.[f.timeline.length - 1];
   return (
     <>
-      <Formula>Saldo im Jahr t = − Investition (inkl. Instandhaltung) + Σ Jahr 1…t Stromwert</Formula>
-      <Assumption>Stromwert im Jahr t = Stromerzeugung pro Jahr × Strompreis im Jahr t</Assumption>
+      <Formula>Saldo im Jahr t = − Anschaffung + Σ Jahr 1…t Stromwert</Formula>
+      <Assumption>Stromwert im Jahr t = Stromerzeugung im Jahr t × Strompreis im Jahr t</Assumption>
       <Assumption>
         Strompreis im Jahr t = {p0 != null ? `${fmtFlex(p0, 1)} ct/kWh` : "Ausgangswert"} + {fmtFlex(inc, 1)} ct/kWh × (t − 1)
         {last && n ? ` → im Jahr ${n}: ${fmtFlex(last.electricity_price_ct_per_kwh, 1)} ct/kWh` : ""}
       </Assumption>
       <Assumption>
-        Investition = Anschaffung + {a ? `${fmtFlex(a.operating_cost_pct_of_investment, 1)} %` : "–"} der Anschaffung × {n ?? "N"}{" "}
-        Jahre Instandhaltung – daher startet die Linie bei der Gesamtinvestition
+        Alterung: Ertrag sinkt um {fmtFlex(a?.degradation_pct_per_year ?? 0.25, 2)} % pro Jahr (Energieatlas BW)
+      </Assumption>
+      <Assumption>
+        Die Linie startet bei den Anschaffungskosten, ohne Instandhaltung – wie die Amortisation. Der Gewinn zieht
+        zusätzlich die Instandhaltung ({a ? `${fmtFlex(a.operating_cost_pct_of_investment, 1)} %` : "–"} der Anschaffung ×{" "}
+        {n ?? "N"} Jahre{f ? ` = ${fmtMio(f.maintenance_cost_total_eur)}` : ""}) ab und liegt daher unter dem Endwert.
       </Assumption>
       <Meaning>
-        Wo die Linie die Nulllinie schneidet, ist die Investition amortisiert; der Endwert ist der Gewinn. Vereinfacht:
-        ohne Zinsen, Steuern, Förderung und Alterung der Module.
+        Wo die Linie die Nulllinie schneidet, ist die Anschaffung amortisiert. Vereinfacht: ohne Zinsen, Steuern und
+        Förderung.
       </Meaning>
       <Assumption>
         Quelle Preissteigerung: {a?.price_increase_source ?? "Energieatlas Baden-Württemberg (LUBW)"} –{" "}
@@ -386,9 +395,9 @@ function Development({ forecast: f, config, isExample }) {
                 <BalanceInfo forecast={f} config={config} />
               </InfoTip>
             </span>
-            <span className="note">Kumulierter Saldo in Mio. €</span>
+            <span className="note">Kumulierter Saldo der Anschaffung in Mio. €</span>
           </div>
-          <BalanceChart timeline={f?.timeline} amortizationYears={f?.amortization_years} investmentEur={f?.investment_eur ?? 0} />
+          <BalanceChart timeline={f?.timeline} amortizationYears={f?.amortization_years} investmentEur={f?.purchase_cost_eur ?? 0} />
         </div>
 
         <div className={s.divider} aria-hidden="true" />

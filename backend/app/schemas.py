@@ -159,12 +159,13 @@ class BuildingProfile(BaseModel):
     price_outside_table: bool = False       # Ausbau größer als die Preistabelle (letzter Preis verwendet)
     investment_eur: Optional[float] = None
     operating_cost_eur_per_year: Optional[float] = None
-    energy_kwh_per_year: Optional[float] = None
+    energy_kwh_per_year: Optional[float] = None  # 1. Jahr, danach −0,25 % je Jahr (Alterung)
     co2_savings_kg_per_year: Optional[float] = None
-    amortization_years: Optional[float] = None  # None: Erträge decken die laufenden Kosten nicht
-    electricity_price_ct_per_kwh: float     # SMARD Day-Ahead (Tageswert), sonst Beispielwert
+    amortization_years: Optional[float] = None  # Σ Stromwert ≥ Anschaffung (ohne laufende Kosten); None: nicht in 100 J.
+    electricity_price_ct_per_kwh: float     # SMARD Day-Ahead, Jahresmittel des letzten vollen Jahres; sonst Beispielwert
     electricity_price_is_example: bool = False
     price_increase_ct_per_kwh_per_year: float = 0.0  # jährliche Strompreissteigerung (Energieatlas BW)
+    degradation_pct_per_year: float = 0.0  # Ertragsminderung durch Alterung je Jahr (Energieatlas BW)
     operating_cost_pct: float               # % der Anschaffungskosten pro Jahr
 
 
@@ -266,7 +267,7 @@ class ForecastRequest(BaseModel):
 class ForecastYear(BaseModel):
     year_index: int  # 0 = Start
     year: int
-    cumulative_balance_eur: float  # < 0 bis Amortisation
+    cumulative_balance_eur: float  # −Anschaffung + Σ Stromwert (ohne Instandhaltung); < 0 bis Amortisation
     electricity_price_ct_per_kwh: float = 0.0  # Strompreis in diesem Jahr (Ausgangswert + 0,6 ct/kWh je Jahr)
 
 
@@ -279,6 +280,7 @@ class ForecastAssumptions(BaseModel):
     price_increase_ct_per_kwh_per_year: float = 0.0  # jährliche Strompreissteigerung
     price_increase_source: Optional[str] = None
     price_increase_url: Optional[str] = None
+    degradation_pct_per_year: float = 0.0  # Ertragsminderung durch Alterung je Jahr
     status: dict[str, DataStatus]           # Herkunft je Annahme (verified = aus Daten, example = Beispielwert)
 
 
@@ -291,12 +293,12 @@ class ForecastResponse(BaseModel):
     investment_eur: float              # gesamt = Anschaffung + Instandhaltung über den Zeitraum
     purchase_cost_eur: float = 0.0     # Anschaffung (einmalig)
     maintenance_cost_total_eur: float = 0.0  # Instandhaltung: 1 % der Anschaffung × Jahre
-    profit_eur: float
-    electricity_value_eur_per_year: float  # Ø über den Zeitraum (Strompreis steigt jährlich)
+    profit_eur: float                  # Σ Stromwert (Jahr 1…T) − investment_eur
+    electricity_value_eur_per_year: float  # Ø über den Zeitraum (Strompreis steigt, Ertrag sinkt)
     operating_cost_eur_per_year: float  # Instandhaltung pro Jahr (in investment_eur enthalten)
-    amortization_years: Optional[float]
-    energy_per_year_mwh: float
-    energy_total_mwh: float
+    amortization_years: Optional[float]  # Σ Stromwert ≥ Anschaffung (ohne Instandhaltung)
+    energy_per_year_mwh: float          # Ø über den Zeitraum (mit Alterung)
+    energy_total_mwh: float             # Σ Jahr 1…T (mit Alterung)
     consumption_gwh_per_year: float
     solar_share_pct: float
     co2_savings_t_per_year: float

@@ -1060,6 +1060,11 @@
             "title": "Price Increase Ct Per Kwh Per Year",
             "default": 0.0
           },
+          "degradation_pct_per_year": {
+            "type": "number",
+            "title": "Degradation Pct Per Year",
+            "default": 0.0
+          },
           "operating_cost_pct": {
             "type": "number",
             "title": "Operating Cost Pct"
@@ -1346,6 +1351,11 @@
               }
             ],
             "title": "Price Increase Url"
+          },
+          "degradation_pct_per_year": {
+            "type": "number",
+            "title": "Degradation Pct Per Year",
+            "default": 0.0
           },
           "status": {
             "additionalProperties": {

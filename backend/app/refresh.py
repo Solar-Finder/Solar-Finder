@@ -18,7 +18,7 @@ if what in ("all", "osm"):
     print("OSM-Solaranlagen:", len(osm.load_solar(force=True)["solar"]))
     print("Gebäude:", len(osm.load_buildings(force=True)["buildings"]))
 if what in ("all", "preis"):
-    print("Strompreis (ct/kWh):", power_price.load(force=True)["ct_per_kwh"])
+    p = power_price.load(force=True); print(f"Strompreis (ct/kWh, Jahresmittel {p['year']}):", p["ct_per_kwh"])
 if what == "alkis":  # nicht in "all": großer Download, Daten ändern sich selten
     d = alkis.build()
     print("ALKIS-Gebäudefunktion:", d["matched"], "von", d["lubw_buildings"], "LUBW-Gebäuden zugeordnet")

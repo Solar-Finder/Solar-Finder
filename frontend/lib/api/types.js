@@ -114,19 +114,21 @@
  * @property {number} potential_power_mwp
  * @property {number} target_power_mwp
  * @property {number} new_power_mwp
- * @property {number} investment_eur
- * @property {number} profit_eur
+ * @property {number} investment_eur  Anschaffung + Instandhaltung über den Zeitraum
+ * @property {number} purchase_cost_eur  Anschaffung (Basis der Amortisation)
+ * @property {number} maintenance_cost_total_eur
+ * @property {number} profit_eur  Σ Stromwert − investment_eur
  * @property {number} electricity_value_eur_per_year
  * @property {number} operating_cost_eur_per_year
- * @property {number|null} amortization_years
+ * @property {number|null} amortization_years  Σ Stromwert ≥ Anschaffung (ohne Instandhaltung)
  * @property {number} energy_per_year_mwh
  * @property {number} energy_total_mwh
  * @property {number} consumption_gwh_per_year
  * @property {number} solar_share_pct
  * @property {number} co2_savings_t_per_year
  * @property {number} co2_savings_t_total
- * @property {{investment_eur_per_kwp: number, specific_yield_kwh_per_kwp: number, operating_cost_pct_of_investment: number, co2_kg_per_kwh: number}} assumptions
- * @property {{year_index: number, year: number, cumulative_balance_eur: number}[]} timeline
+ * @property {{investment_eur_per_kwp: number, specific_yield_kwh_per_kwp: number, operating_cost_pct_of_investment: number, co2_kg_per_kwh: number, price_increase_ct_per_kwh_per_year: number, degradation_pct_per_year: number}} assumptions
+ * @property {{year_index: number, year: number, cumulative_balance_eur: number, electricity_price_ct_per_kwh: number}[]} timeline  Saldo = −Anschaffung + Σ Stromwert
  */
 
 export {};

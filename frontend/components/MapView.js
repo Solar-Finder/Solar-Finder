@@ -340,7 +340,7 @@ function buildingProfileHtml(p, labels) {
     row("Anschaffungskosten", build(pr.investment_eur, eur), true),
     row("je kWp", build(pr.price_eur_per_kwp, (v) => `${fmtInt(v)} €/kWp`, "entfällt")),
     row("Laufende Kosten", build(pr.operating_cost_eur_per_year, (v) => `${eur(v)}/Jahr`)),
-    row("Stromertrag", build(pr.energy_kwh_per_year, (v) => `${fmtInt(v)} kWh/Jahr`)),
+    row("Stromertrag (1. Jahr)", build(pr.energy_kwh_per_year, (v) => `${fmtInt(v)} kWh/Jahr`)),
     row("Amortisation", amortization, true),
     row("CO₂-Einsparung", build(pr.co2_savings_kg_per_year, (v) => `${fmtFlex(v / 1000, 1)} t/Jahr`)),
   ];
@@ -352,10 +352,14 @@ function buildingProfileHtml(p, labels) {
   notes.push(
     `Preise laut Tabelle (Stand 2025) · laufende Kosten ${fmtFlex(pr.operating_cost_pct, 1)} % der Anschaffung/Jahr · ` +
       `Strompreis ${fmtFlex(pr.electricity_price_ct_per_kwh, 1)} ct/kWh ` +
-      (pr.electricity_price_is_example ? "(Beispiel)" : "(Börsenpreis SMARD, Tageswert)") +
+      (pr.electricity_price_is_example ? "(Beispiel)" : "(Börsenpreis SMARD, Jahresmittel)") +
       (pr.price_increase_ct_per_kwh_per_year
-        ? `, steigt um ${fmtFlex(pr.price_increase_ct_per_kwh_per_year, 1)} ct/kWh pro Jahr (Energieatlas BW)`
-        : "")
+        ? `, steigt um ${fmtFlex(pr.price_increase_ct_per_kwh_per_year, 1)} ct/kWh pro Jahr`
+        : "") +
+      (pr.degradation_pct_per_year
+        ? ` · Ertrag sinkt durch Alterung um ${fmtFlex(pr.degradation_pct_per_year, 2)} % pro Jahr`
+        : "") +
+      " (Energieatlas BW) · Amortisation: Stromwert gegen Anschaffungskosten, ohne laufende Kosten"
   );
 
   return (

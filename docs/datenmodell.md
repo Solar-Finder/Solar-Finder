@@ -16,7 +16,7 @@ Dachpotenzials mehr aus der Gebäudegrundfläche.
 | **Marktstammdatenregister** | API, Cache 1 Tag | installierte Anlagen (Leistung, Typ, PLZ; Koordinaten nur > 30 kW) | verified |
 | **OpenStreetMap** | `data/osm/*.json` (im Git). Nach Ablauf (PLZ-Grenzen/Gebäude 30 Tage, Solaranlagen 7 Tage, gemessen am Feld `retrieved_at`) im Hintergrund über Overpass erneuert, danach wird das Modell neu aufgebaut. Ist Overpass nicht erreichbar (10-s-Verbindungstest), bleibt der vorhandene Stand; PLZ-Grenzen ersatzweise über Nominatim + OSM-API (`relation/{id}/full`) | nur, was LUBW nicht enthält: PLZ-Grenzen, Gebäudename, zusätzlich erfasste Dachanlagen; Gebäudeart nur, wo ALKIS nichts liefert | verified |
 | **ALKIS-Gebäudefunktion** (LGL, 3D-Gebäudemodelle LoD2) | [Open GeoData LGL](https://opengeodata.lgl-bw.de), 2-km-Kacheln `LoD2_32_{E}_{N}_2_bw.zip` (CityGML, Attribut `bldg:function`). Einmalig aufbereitet mit `python -m app.refresh alkis` zu `data/alkis/alkis_gebaeudefunktion.json` (LUBW-Gebäude → Funktionscode, im Git). Lizenz **dl-de/by-2-0**, Quellenvermerk „Datenquelle: LGL, www.lgl-bw.de, dl-de/by-2-0“, Codes von uns zu Kategorien zusammengefasst | Gebäudekategorie | verified |
-| **Strompreis** | [InfraNode-API](https://infranode.dev/api/v1/cities/pforzheim/power-price) → Bundesnetzagentur \| SMARD.de (CC BY 4.0), Cache 1 Tag (`data/cache/power_price.json`) | Day-Ahead-Großhandelspreis DE/LU als Tageswert (€/MWh ÷ 10 = ct/kWh); Startwert des Reglers im Rechner und Preis im Gebäude-Steckbrief. Kein Endkundenpreis. Ohne Abruf und Cache: Beispielwert 18 ct/kWh (gekennzeichnet) | verified |
+| **Strompreis** | [SMARD-Marktdaten](https://www.smard.de/home/marktdaten) (Chart-Daten, Filter 4169 „Marktpreis DE/LU“, Auflösung Jahr) → Bundesnetzagentur \| SMARD.de (CC BY 4.0), Cache 7 Tage (`data/cache/power_price_year.json`) | Day-Ahead-Großhandelspreis DE/LU, **Jahresmittel des letzten abgeschlossenen Kalenderjahres** (Mittel über alle Stunden; €/MWh ÷ 10 = ct/kWh) – ein Tageswert schwankt zu stark; Startwert des Reglers im Rechner und Preis im Gebäude-Steckbrief. Kein Endkundenpreis. Ohne Abruf und Cache: Beispielwert 18 ct/kWh (gekennzeichnet) | verified |
 | **Anschaffungskosten je Gebäude** | `data/Tabelle_Anschaffungskosten_PVprokWp.md` (Nettopreise nach Größe, Stand 2025) | Gebäude-Steckbrief | Annahme laut Tabelle |
 | Wirtschaftlichkeit (Rechner) | Konstanten in `data_service.py` | Investition 900 €/kWp, Stromverbrauch der Stadt | **example** – keine Quelle im Projekt |
 | Laufende Kosten | Vorgabe | 1 % der Anschaffungskosten pro Jahr (Rechner und Steckbrief) | Vorgabe |
@@ -134,18 +134,20 @@ Eingaben: Ziel-Ausnutzung `p` (%), Zeitraum `T` (Jahre), Strompreis `c` (ct/kWh)
 | Ziel-Leistung | `P_ziel = P_potenzial × p / 100` | Daten |
 | Neue Leistung | `P_neu = max(P_ziel − P_dach, 0)` | Daten |
 | Spez. Ertrag | `y = Σ Yield ÷ Σ Power` (Klassen 1–3), Pforzheim ≈ 963 kWh/kWp | **LUBW** |
-| Energieertrag pro Jahr | `E = P_neu × y` | LUBW |
+| Energieertrag im Jahr t | `E_t = P_neu × y × (1 − 0,25 %)^(t − 1)` (Alterung der Module, [Energieatlas BW](https://www.energieatlas-bw.de/sonne/gebaeude/grundlagen)) | LUBW + Energieatlas BW |
+| Energieertrag pro Jahr (Anzeige) | Ø `Σ E_t ÷ T`; gesamt `Σ E_t` (t = 1…T) | abgeleitet |
 | CO₂-Faktor | `f = Σ CO2Savings ÷ Σ Yield` = 0,46 kg/kWh | **LUBW** |
-| CO₂-Einsparung pro Jahr | `E × f` | LUBW |
+| CO₂-Einsparung | pro Jahr Ø `Σ E_t ÷ T × f`, gesamt `Σ E_t × f` | LUBW |
 | Anschaffung | `P_neu × 900 €/kWp` | example |
 | Instandhaltung pro Jahr | 1 % der Anschaffung (Vorgabe) | example |
-| Investition (gesamt) | Anschaffung + Instandhaltung × T – die Instandhaltung ist damit vollständig enthalten | abgeleitet |
-| Stromwert im Jahr t (€) | `E × c_t / 100`, `c_t = c + 0,6 ct/kWh × (t − 1)` | Eingabe + Energieatlas BW |
-| Gewinn | Σ Stromwert (Jahr 1…T) − Investition (gesamt); Instandhaltung **nicht** zusätzlich abgezogen | abgeleitet |
-| Amortisation | Zeitpunkt, ab dem Σ Stromwert ≥ Investition (gesamt); hängt damit auch von T ab; Strompreis im Jahr t = Ausgangswert + 0,6 ct/kWh × (t − 1) ([Energieatlas BW](https://www.energieatlas-bw.de/sonne/gebaeude/grundlagen), „Steigerung der Stromkosten“) | abgeleitet |
-| Anteil am Verbrauch | `E ÷ 300 GWh` | example |
+| Investition (gesamt) | Anschaffung + Instandhaltung × T | abgeleitet |
+| Stromwert im Jahr t (€) | `E_t × c_t / 100`, `c_t = c + 0,6 ct/kWh × (t − 1)` | Eingabe + Energieatlas BW |
+| Gewinn | Σ Stromwert (Jahr 1…T) − Investition (gesamt) | abgeleitet |
+| Amortisation | Zeitpunkt, ab dem Σ Stromwert ≥ **Anschaffung** (ohne Instandhaltung); innerhalb des Jahres anteilig; Strompreis im Jahr t = Ausgangswert + 0,6 ct/kWh × (t − 1) ([Energieatlas BW](https://www.energieatlas-bw.de/sonne/gebaeude/grundlagen), „Steigerung der Stromkosten“) | abgeleitet |
+| Saldo-Kurve (Diagramm) | `−Anschaffung + Σ Stromwert (Jahr 1…t)` – schneidet 0 bei der Amortisation; Endwert = Gewinn + Instandhaltung | abgeleitet |
+| Anteil am Verbrauch | `Ø E ÷ 300 GWh` | example |
 
-Vereinfachungen: konstante Erträge, Strompreis steigt linear um 0,6 ct/kWh pro Jahr, keine Degradation, keine Zinsen, alle neuen
+Vereinfachungen: Ertrag sinkt um 0,25 % pro Jahr, Strompreis steigt linear um 0,6 ct/kWh pro Jahr, keine Zinsen, alle neuen
 Anlagen gleichzeitig im Jahr 0. Der spezifische Ertrag ist der Mittelwert **aller** geeigneten
 Dachflächen. Es wird nicht angenommen, dass zuerst die besten Dächer belegt werden.
 
@@ -165,8 +167,8 @@ Berechnet in `data_service.building_profile`, je Gebäude:
 | Dachfläche / davon PV-geeignet | LUBW Σ `Area3D` (alle Dachseiten) / Σ `PvArea` (Klassen 1–3) |
 | Anschaffungskosten | offen × Preis je kWp der Größenstufe von „offen“ aus `data/Tabelle_Anschaffungskosten_PVprokWp.md` (Nettopreise, Stand 2025); über 200 kWp: Preis der Stufe „bis 200“ (810 €/kWp) |
 | Laufende Kosten | 1 % der Anschaffungskosten pro Jahr |
-| Stromertrag | offen × (Σ `Yield` ÷ Σ `Power`) des Gebäudes |
-| Amortisation | Zeitpunkt, ab dem Σ (Stromertrag × Strompreis im Jahr t − laufende Kosten) ≥ Anschaffungskosten; Strompreis = SMARD Day-Ahead im 1. Jahr, danach +0,6 ct/kWh je Jahr (Energieatlas BW) |
+| Stromertrag (1. Jahr) | offen × (Σ `Yield` ÷ Σ `Power`) des Gebäudes; danach −0,25 % je Jahr (Alterung) |
+| Amortisation | Zeitpunkt, ab dem Σ (Stromertrag im Jahr t × Strompreis im Jahr t) ≥ Anschaffungskosten (laufende Kosten zählen nicht); Strompreis = SMARD-Jahresmittel im 1. Jahr, danach +0,6 ct/kWh je Jahr; Ertrag −0,25 % je Jahr (beides Energieatlas BW) |
 | CO₂-Einsparung | offen × (Σ `CO2Savings` ÷ Σ `Power`) des Gebäudes |
 
 Der Steckbrief hat immer dieselben Zeilen. Ist eine Anlage nur in OpenStreetMap erfasst (Leistung
