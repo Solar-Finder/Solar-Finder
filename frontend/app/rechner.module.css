@@ -1,0 +1,362 @@
+/* ---------- PV-Übersicht ---------- */
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px;
+}
+
+.overviewTitle {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-subtle);
+}
+
+.statHighlight {
+  background: var(--pf-blue-50);
+  border-color: var(--pf-blue-200);
+}
+
+.statLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.statValue {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+
+.statHighlight .statValue {
+  color: var(--pf-blue);
+}
+
+/* ---------- Eingaben und Ergebnisse ---------- */
+.inputsResults {
+  display: grid;
+  grid-template-columns: 490px 1fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.config {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px;
+  min-height: 292px;
+}
+
+.forecast {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 20px;
+  min-width: 0;
+}
+
+.forecastScope {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 68px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--surface-subtle);
+  min-width: 0;
+}
+
+.kpiHighlight {
+  background: var(--pf-blue-50);
+}
+
+.kpiHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.kpiValue {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.8px;
+}
+
+.kpiHighlight .kpiValue {
+  color: var(--pf-blue);
+}
+
+.kpiNote {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.yearBalance {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ---------- Entwicklung im Zeitverlauf ---------- */
+.development {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 10px 24px 12px;
+}
+
+.scenario {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.scenarioLine {
+  width: 18px;
+  height: 3px;
+  border-radius: 100px;
+  background: var(--pf-blue);
+}
+
+.charts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1px 444px;
+  gap: 24px;
+}
+
+.financeChart {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.chartTitle {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.divider {
+  background: #dfe5e0;
+}
+
+.sideCharts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.sideChart {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sideChartHead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sideChartTitle {
+  font-size: 13px;
+}
+
+.consumption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.donutValue {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.donutSub {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.legend {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+}
+
+.legendMuted {
+  color: var(--text-muted);
+}
+
+.consumptionHint {
+  align-self: stretch;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--text-muted);
+}
+
+.growth {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 24px 14px;
+  border-radius: 8px;
+  background: var(--surface-subtle);
+}
+
+.growthTarget {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.growthBar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 24px;
+  margin-top: 4px;
+}
+
+/* Bestand und Zubau gleich breit; die Werte stehen in der Beschriftung */
+.growthBar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  background: var(--border-strong);
+}
+
+.growthBar span {
+  position: relative;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.growthBarNew::before {
+  background: var(--pf-blue);
+}
+
+.growthBarNew span {
+  color: #fff;
+}
+
+.growthBar + .growthBar {
+  margin-top: 0;
+}
+
+.growth > :last-child {
+  margin-top: 8px;
+}
+
+/* ---------- Responsiv ---------- */
+@media (max-width: 1240px) {
+  .charts {
+    grid-template-columns: 1fr;
+  }
+  .divider {
+    display: none;
+  }
+  .sideCharts {
+    max-width: 520px;
+  }
+}
+
+@media (max-width: 1080px) {
+  .inputsResults {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .statRow,
+  .kpiGrid,
+  .sideCharts {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Info-Texte der Prognosen (im InfoTip) ---------- */
+.infoFormula {
+  display: block;
+  margin-bottom: 6px;
+  padding: 5px 7px;
+  border-radius: 4px;
+  background: var(--pf-blue-50);
+  color: var(--pf-blue-700);
+  font-weight: 600;
+}
+
+.infoLine {
+  display: block;
+  color: var(--text-muted);
+}
+
+.infoMeaning {
+  display: block;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}

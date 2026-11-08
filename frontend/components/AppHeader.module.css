@@ -1,0 +1,62 @@
+/*
+  Signethöhe = Wappenhöhe ≈ 32 px
+  Schutzzone: oben/unten ½ Wappenhöhe (16 px) → Kopfzeile 64 px,
+              seitlich 1 Wappenbreite (32 px) frei von anderen Elementen
+*/
+.header {
+  --signet-h: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: calc(var(--signet-h) * 2);
+  padding: 0 var(--page-gutter);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.signet {
+  display: block;
+  flex-shrink: 0;
+  margin-right: var(--signet-h);
+  line-height: 0;
+}
+
+.signet img {
+  display: block;
+  height: var(--signet-h);
+  width: auto;
+}
+
+.nav {
+  display: flex;
+  gap: 6px;
+}
+
+.tab {
+  padding: 8px 14px;
+  border-radius: 100px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.tab:hover {
+  background: var(--border);
+}
+
+.tabActive {
+  background: var(--pf-blue);
+  color: #fff;
+  font-weight: 600;
+}
+
+.tabActive:hover {
+  background: var(--pf-blue-700);
+}
+
+@media (max-width: 400px) {
+  .header {
+    --signet-h: 26px;
+  }
+}

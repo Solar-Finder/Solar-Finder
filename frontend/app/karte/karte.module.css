@@ -1,0 +1,659 @@
+/* ---------- Seitentitel ---------- */
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ---------- Filter + Karte ---------- */
+.filterAndMap {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 16px;
+  height: 486px;
+  position: relative;
+  transition: grid-template-columns 0.2s ease, column-gap 0.2s ease;
+}
+
+/* Eingeklappt: Panel hat keine Breite mehr, die Karte nimmt die ganze Zeile ein */
+.filterAndMapCollapsed {
+  grid-template-columns: 0px minmax(0, 1fr);
+  column-gap: 0;
+}
+
+.filtersHidden {
+  visibility: hidden;
+  padding-left: 0;
+  padding-right: 0;
+  border-width: 0;
+}
+
+/* Griff mittig auf der Kante zwischen Panel und Karte (bzw. am linken Kartenrand) */
+.panelToggle {
+  position: absolute;
+  top: 50%;
+  left: 268px; /* Panelbreite 260 px + halbe Lücke */
+  z-index: 1001;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 56px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-small);
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(17, 24, 39, 0.12);
+  cursor: pointer;
+  transition: left 0.2s ease, background 0.15s ease;
+}
+
+.filterAndMapCollapsed .panelToggle {
+  left: 0;
+}
+
+.panelToggle:hover {
+  background: var(--pf-blue-50);
+  border-color: var(--pf-blue-200);
+}
+
+.panelToggle:focus-visible {
+  outline: 2px solid var(--pf-blue);
+  outline-offset: 2px;
+}
+
+/* Text nur für Screenreader bzw. auf schmalen Bildschirmen sichtbar */
+.panelToggleText {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Chevron zeigt nach links (einklappen) bzw. rechts (ausklappen) */
+.chevronCollapse {
+  transform: rotate(90deg);
+}
+
+.chevronExpand {
+  transform: rotate(-90deg);
+}
+
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 20px;
+  overflow-y: auto;
+}
+
+.filterTitle {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.groupLabel {
+  padding: 0;
+  margin-bottom: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* fieldset-legend braucht Abstand wie die übrigen Gruppen */
+fieldset.group > legend {
+  margin-bottom: 6px;
+}
+
+.radio {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-field);
+  background: var(--surface-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.radio:hover {
+  border-color: var(--border-strong);
+}
+
+.radio:has(input:focus-visible) {
+  outline: 2px solid var(--pf-blue);
+  outline-offset: 2px;
+}
+
+.radioOn {
+  background: var(--pf-blue-50);
+  border-color: var(--pf-blue-200);
+  font-weight: 600;
+}
+
+.radioDot {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: #fff;
+}
+
+.select {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: #fff;
+}
+
+.select select {
+  appearance: none;
+  width: 100%;
+  height: 100%;
+  padding: 0 36px 0 12px;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.select img {
+  position: absolute;
+  right: 12px;
+  pointer-events: none;
+}
+
+.selectActive {
+  background: var(--pf-blue-50);
+  border-color: var(--pf-blue-200);
+}
+
+.selectActive select {
+  font-weight: 600;
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+}
+
+.classChip {
+  width: 49px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.classChipOn {
+  background: var(--pf-blue-50);
+  border-color: var(--pf-blue-200);
+  color: var(--text);
+}
+
+/* ---------- Karte + Overlays ---------- */
+.mapFrame {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--map-bg);
+}
+
+.mapLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.mapBadge {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  pointer-events: none;
+}
+
+.mapBadgeCity {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.mapBadgeDivider {
+  width: 1px;
+  height: 12px;
+  background: var(--border);
+}
+
+.mapBadgeView {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.mapHint {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  z-index: 1000;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  color: var(--text);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.pendingTag {
+  font-weight: 400;
+  color: var(--text-subtle);
+}
+
+fieldset.group:disabled .classChip {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.countNote {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.pendingBody {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 8px 0 0 8px;
+}
+
+.pendingText {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.legend {
+  position: absolute;
+  left: 15px;
+  bottom: 15px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 272px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.legendHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.legendHead strong {
+  margin-right: auto;
+}
+
+.legendHead > span {
+  font-size: 10px;
+  color: var(--text-subtle);
+}
+
+/* Pfeil rechts oben in der Legende – gleicher Stil wie der Griff der Kartenansicht */
+.legendToggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: -4px -4px -4px 0;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-small);
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.legendToggle:hover {
+  background: var(--pf-blue-50);
+  border-color: var(--pf-blue-200);
+}
+
+.legendToggle:focus-visible {
+  outline: 2px solid var(--pf-blue);
+  outline-offset: 2px;
+}
+
+.legendToggle img {
+  transition: transform 0.2s ease;
+}
+
+/* Ausgeklappt zeigt der Pfeil nach unten (einklappen), eingeklappt nach oben (ausklappen) */
+.legendChevronUp {
+  transform: rotate(180deg);
+}
+
+/* Inhalt klappt über die Zeilenhöhe ein: 1fr → 0fr; die Legende ist unten verankert,
+   ihre Oberkante wandert dadurch nach unten */
+.legendBody {
+  display: grid;
+  grid-template-rows: 1fr;
+  margin-top: -8px; /* hebt das gap der Legende auf, Abstand kommt aus legendBodyInner */
+  transition: grid-template-rows 0.2s ease;
+}
+
+.legendCollapsed .legendBody {
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition: grid-template-rows 0.2s ease, visibility 0s 0.2s;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.legendBodyInner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding-top: 8px;
+  overflow: hidden;
+}
+
+.legend hr {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--surface-muted);
+}
+
+.legendSection {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  /* Mockup nutzt hier Versalien; das CD-Manual rät davon ab → normale Schreibweise */
+}
+
+.legend ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.swatch {
+  width: 14px;
+  height: 12px;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  border-radius: 2px;
+}
+
+/* Wie auf der Karte: weiße Schraffur auf Blau mit gestricheltem Rand (Anlage bekannt, Leistung unbekannt) */
+.swatchHatched {
+  border: 1px dashed var(--pf-blue);
+  background: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.85) 0 1.5px, var(--pf-blue) 1.5px 4px);
+}
+
+.dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid #fff;
+  border-radius: 50%;
+  background: var(--pf-red);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.legendNote {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ---------- Untere Auswertungsreihe ---------- */
+.bottomRow {
+  display: grid;
+  grid-template-columns: 260px repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.overviewCard,
+.breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 200px;
+  padding: 12px;
+}
+
+.cardTitle {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cardSub {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.modelValues {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modelValue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modelValue span {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.modelValue strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.coverage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modelValue .coverageValue {
+  font-size: 13px;
+  color: var(--pf-blue);
+}
+
+.coverageBar {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 100px;
+  background: var(--border);
+}
+
+.coverageBar i {
+  display: block;
+  height: 100%;
+  border-radius: 100px;
+  background: var(--pf-blue);
+}
+
+.breakdownBody {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 8px 0 0 8px;
+}
+
+.donutValue {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.donutSub {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.breakdownLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.breakdownLegend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.breakdownLegend i {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+/* ---------- Responsiv ---------- */
+@media (max-width: 1180px) {
+  .bottomRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .filterAndMap,
+  .filterAndMapCollapsed {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  /* Schmale Bildschirme: Panel über der Karte, Griff als Leiste dazwischen */
+  .filtersHidden {
+    display: none;
+  }
+  .panelToggle,
+  .filterAndMapCollapsed .panelToggle {
+    position: static;
+    transform: none;
+    width: 100%;
+    height: 36px;
+    gap: 8px;
+  }
+  .panelToggleText {
+    position: static;
+    width: auto;
+    height: auto;
+    clip: auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .chevronCollapse {
+    transform: rotate(180deg);
+  }
+  .chevronExpand {
+    transform: none;
+  }
+  .mapFrame {
+    height: 480px;
+  }
+  .legend {
+    width: auto;
+    right: 70px;
+  }
+}
+
+@media (max-width: 560px) {
+  .bottomRow {
+    grid-template-columns: 1fr;
+  }
+}

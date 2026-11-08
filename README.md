@@ -105,11 +105,61 @@ Design:
 ## Techstack
 
 ### Frontend
-- NExtJs
+- Next.js (JavaScript) in `frontend/` – Seiten „Rechner“ (`/`) und „Karte“ (`/karte`), Karte mit Leaflet
+- Design: Figma-Mockups + Corporate Design Stadt Pforzheim (Tokens in `frontend/app/globals.css`)
 
 ### Backend
-- Python
+- Python / FastAPI in `backend/` (`backend/app/data_service.py`, räumliche Verknüpfung in `geo_model.py`)
+- Schnittstellen-Vertrag: `docs/api/openapi.json` (erzeugt mit `python -m app.export_openapi`), interaktiv unter http://localhost:8000/docs
+
+## Lokal starten (VS Code, Windows)
+
+Es werden **zwei Terminals** benötigt – eins für das Backend, eins für das Frontend.
+Neues Terminal: **Terminal → Neues Terminal**, weiteres Terminal über das **+** im Terminal-Bereich.
+Die Befehle gelten für PowerShell (Standard in VS Code unter Windows).
+
+**Voraussetzungen:** Python 3.11+ und Node.js 20+
+
+### 1. Backend (Terminal 1)
+
+| Schritt | Ordner | Befehl |
+|---|---|---|
+| In den Ordner wechseln | Projektordner | `cd backend` |
+| Python-Umgebung anlegen *(nur beim ersten Mal)* | `backend` | `python -m venv .venv` |
+| Pakete installieren *(nur beim ersten Mal)* | `backend` | `.venv\Scripts\pip install -r requirements.txt` |
+| **Backend starten** | `backend` | `.venv\Scripts\python -m uvicorn app.main:app --reload --reload-dir app --timeout-keep-alive 75 --port 8000` |
+
+✅ Läuft, sobald `Application startup complete` erscheint → API-Doku unter http://localhost:8000/docs
+
+> **Erster Start:** Das Backend lädt die Daten aus dem Marktstammdatenregister (ca. 1 Minute)
+> und speichert sie in `data/cache/` (nicht im Git). Danach startet es in Sekunden.
+> LUBW- und OSM-Daten liegen bereits im Repository (`data/`).
+
+### 2. Frontend (Terminal 2)
+
+| Schritt | Ordner | Befehl |
+|---|---|---|
+| In den Ordner wechseln | Projektordner | `cd frontend` |
+| Pakete installieren *(nur beim ersten Mal)* | `frontend` | `npm install` |
+| **Frontend starten** | `frontend` | `npm run dev` |
+
+✅ Danach im Browser öffnen: **http://localhost:3000**
+
+### Gut zu wissen
+
+- **Reihenfolge:** zuerst das Backend starten – sonst zeigt die Website „Daten konnten nicht geladen werden“.
+- **Beenden:** im jeweiligen Terminal `Strg + C`.
+- **Daten neu laden** (im Ordner `backend`): `.venv\Scripts\python -m app.refresh` – danach Backend neu starten.
+- **API-Vertrag neu erzeugen** (im Ordner `backend`): `.venv\Scripts\python -m app.export_openapi` → `docs/api/openapi.json`
+- **Fehler „Ausführung von Skripts ist auf diesem System deaktiviert“** bei `npm`: einmalig
+  `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` ausführen – oder im Terminal-Menü (Pfeil neben **+**) auf **Command Prompt** wechseln.
+- **Andere Backend-Adresse:** Der Browser ruft das Backend direkt unter Port 8000 auf (CORS). Eine andere Adresse lässt sich mit der Umgebungsvariable `NEXT_PUBLIC_API_URL` setzen. Bewusst kein Next.js-Rewrite-Proxy: Unter Windows kamen größere Antworten darüber abgeschnitten an.
 
 ### Data
-- APIs
-- lokal: Historische Solaranlagen-Daten
+- **Marktstammdatenregister** (API): alle PV-Anlagen „In Betrieb“ in Pforzheim. Adresse/Koordinaten nur bei Anlagen > 30 kW öffentlich, kleinere nur mit PLZ → nur Großanlagen sind gebäudegenau verortbar. Cache: 1 Tag.
+- **LUBW Solarpotenzial Dachflächen** (`data/8231_…/*.shp`): Gebäude, Dachpotenzial (kWp), Jahresertrag, CO₂, Eignungsklasse, Dachform – nur Dachseiten der Klassen 1–3 zählen als Potenzial.
+- **ALKIS-Gebäudefunktion** (LGL, 3D-Gebäudemodelle LoD2, `data/alkis/alkis_gebaeudefunktion.json`): Gebäudekategorie. Datenquelle: LGL, www.lgl-bw.de, dl-de/by-2-0 (Funktionscodes zu Kategorien zusammengefasst). Neu aufbereiten: `python -m app.refresh alkis` (lädt einige hundert MB).
+- **OpenStreetMap** (`data/osm/*.json`, optional): nur, was LUBW und ALKIS nicht enthalten – PLZ-Grenzen, Gebäudenamen, zusätzlich erfasste Dachanlagen; Gebäudeart nur als Ersatz. Der Stand liegt im Git und wird nach 30 Tagen (Solaranlagen: 7 Tage) automatisch im Hintergrund über die Overpass-API erneuert; ist Overpass nicht erreichbar, bleibt der vorhandene Stand. Von Hand: `python -m app.refresh osm`.
+- Spezifischer Ertrag (kWh/kWp) und CO₂-Faktor (kg/kWh) stammen aus den LUBW-Daten. Der Strompreis ist der Day-Ahead-Börsenpreis (SMARD, Jahresmittel des letzten abgeschlossenen Jahres), er steigt in der Rechnung um 0,6 ct/kWh pro Jahr; der Ertrag sinkt durch Alterung um 0,25 % pro Jahr (beides Energieatlas BW); die Amortisation rechnet nur mit den Anschaffungskosten; laufende Kosten 1 % der Investition pro Jahr. Investition (Rechner) und Stromverbrauch sind noch Beispielwerte.
+- **Kartenkacheln** (OpenStreetMap, Esri-Luftbild) lädt der Browser über das Backend (`/api/v1/tiles/…`), nicht direkt beim Anbieter – die Kachelserver sehen so keine IP-Adressen der Nutzer. Cache: `data/cache/tiles/`, 7 Tage.
+- Alle Formeln und die Spaltenbedeutung: [`docs/datenmodell.md`](docs/datenmodell.md)

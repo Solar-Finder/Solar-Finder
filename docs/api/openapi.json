@@ -1,0 +1,2308 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "PV-Prognose Pforzheim",
+    "description": "\nVertrag zwischen Python-Backend (FastAPI) und JavaScript-Frontend (Next.js).\n\n**Datenquellen**\n- PV-Anlagen: Marktstammdatenregister (alle Einheiten „In Betrieb“, Gemeinde Pforzheim).\n  Koordinaten/Adresse sind nur bei Anlagen > 30 kW öffentlich; kleinere Anlagen nur je PLZ.\n- Zusätzlich erfasste Dachanlagen: OpenStreetMap (© OSM-Mitwirkende, ODbL).\n- Gebäude & Dachpotenzial: LUBW Solarpotenzial Dachflächen (Shapefile, Klassen 1–3), siehe docs/datenmodell.md.\n- PLZ-Grenzen und Gebäudeart: OpenStreetMap (optional).\n\n**Konventionen**\n- Einheiten im Feldnamen (`_mwp`, `_kwp`, `_pct`, `_eur`, `_ct_per_kwh`, `_mwh`, `_t`, `_m2`).\n- GeoJSON in WGS84 (EPSG:4326), Koordinaten `[lon, lat]`.\n- Mehrfach-Filter als wiederholte Query-Parameter (`?category=public&category=commercial`).\n\nDiese Datei wird erzeugt mit `python -m app.export_openapi` (im Ordner `backend/`).\n",
+    "version": "0.4.0"
+  },
+  "paths": {
+    "/api/v1/meta": {
+      "get": {
+        "tags": [
+          "status"
+        ],
+        "summary": "Get Meta",
+        "operationId": "get_meta_api_v1_meta_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Meta"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/status": {
+      "get": {
+        "tags": [
+          "status"
+        ],
+        "summary": "Get Status",
+        "operationId": "get_status_api_v1_status_get",
+        "parameters": [
+          {
+            "name": "postal_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Postal Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/map/postal-areas": {
+      "get": {
+        "tags": [
+          "map"
+        ],
+        "summary": "Get Postal Areas",
+        "operationId": "get_postal_areas_api_v1_map_postal_areas_get",
+        "parameters": [
+          {
+            "name": "postal_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Postal Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostalAreaCollection"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/map/buildings": {
+      "get": {
+        "tags": [
+          "map"
+        ],
+        "summary": "Get Buildings",
+        "operationId": "get_buildings_api_v1_map_buildings_get",
+        "parameters": [
+          {
+            "name": "bbox",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "minLon,minLat,maxLon,maxLat – empfohlen, sonst sehr viele Gebäude",
+              "title": "Bbox"
+            },
+            "description": "minLon,minLat,maxLon,maxLat – empfohlen, sonst sehr viele Gebäude"
+          },
+          {
+            "name": "postal_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Postal Code"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BuildingCategory"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Gebäudekategorie(n), mehrfach erlaubt",
+              "title": "Category"
+            },
+            "description": "Gebäudekategorie(n), mehrfach erlaubt"
+          },
+          {
+            "name": "solar_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SolarStatus"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "existing, potential, none",
+              "title": "Solar Status"
+            },
+            "description": "existing, potential, none"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 8000,
+              "minimum": 1,
+              "default": 8000,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildingCollection"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/map/building-points": {
+      "get": {
+        "tags": [
+          "map"
+        ],
+        "summary": "Get Building Points",
+        "description": "Alle Gebäude als Punkte – für die Übersicht bei kleinem Maßstab (ohne Grundrisse).",
+        "operationId": "get_building_points_api_v1_map_building_points_get",
+        "parameters": [
+          {
+            "name": "postal_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Postal Code"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BuildingCategory"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Gebäudekategorie(n), mehrfach erlaubt",
+              "title": "Category"
+            },
+            "description": "Gebäudekategorie(n), mehrfach erlaubt"
+          },
+          {
+            "name": "solar_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SolarStatus"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "existing, potential, none (Standard: alle)",
+              "title": "Solar Status"
+            },
+            "description": "existing, potential, none (Standard: alle)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildingPoints"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/map/installations": {
+      "get": {
+        "tags": [
+          "map"
+        ],
+        "summary": "Get Installations",
+        "description": "Verortete MaStR-Anlagen. Mit `category` nur Anlagen auf Gebäuden dieser Kategorie(n).",
+        "operationId": "get_installations_api_v1_map_installations_get",
+        "parameters": [
+          {
+            "name": "bbox",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bbox"
+            }
+          },
+          {
+            "name": "postal_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Postal Code"
+            }
+          },
+          {
+            "name": "max_power_kwp",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Power Kwp"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BuildingCategory"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Gebäudekategorie(n), mehrfach erlaubt",
+              "title": "Category"
+            },
+            "description": "Gebäudekategorie(n), mehrfach erlaubt"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallationCollection"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stats/roof-types": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Route",
+        "operationId": "route_api_v1_stats_roof_types_get",
+        "parameters": [
+          {
+            "name": "postal_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Postal Code"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BuildingCategory"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Gebäudekategorie(n), mehrfach erlaubt",
+              "title": "Category"
+            },
+            "description": "Gebäudekategorie(n), mehrfach erlaubt"
+          },
+          {
+            "name": "suitability",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SuitabilityClass"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Eignungsklasse(n) laut LUBW: 1, 2, 3 (PV-geeignet), 6, 8, 0",
+              "title": "Suitability"
+            },
+            "description": "Eignungsklasse(n) laut LUBW: 1, 2, 3 (PV-geeignet), 6, 8, 0"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Breakdown"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stats/building-categories": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Route",
+        "operationId": "route_api_v1_stats_building_categories_get",
+        "parameters": [
+          {
+            "name": "postal_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Postal Code"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BuildingCategory"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Gebäudekategorie(n), mehrfach erlaubt",
+              "title": "Category"
+            },
+            "description": "Gebäudekategorie(n), mehrfach erlaubt"
+          },
+          {
+            "name": "suitability",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SuitabilityClass"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Eignungsklasse(n) laut LUBW: 1, 2, 3 (PV-geeignet), 6, 8, 0",
+              "title": "Suitability"
+            },
+            "description": "Eignungsklasse(n) laut LUBW: 1, 2, 3 (PV-geeignet), 6, 8, 0"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Breakdown"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stats/suitability-classes": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Route",
+        "operationId": "route_api_v1_stats_suitability_classes_get",
+        "parameters": [
+          {
+            "name": "postal_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Postal Code"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BuildingCategory"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Gebäudekategorie(n), mehrfach erlaubt",
+              "title": "Category"
+            },
+            "description": "Gebäudekategorie(n), mehrfach erlaubt"
+          },
+          {
+            "name": "suitability",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SuitabilityClass"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Eignungsklasse(n) laut LUBW: 1, 2, 3 (PV-geeignet), 6, 8, 0",
+              "title": "Suitability"
+            },
+            "description": "Eignungsklasse(n) laut LUBW: 1, 2, 3 (PV-geeignet), 6, 8, 0"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Breakdown"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tiles/{basemap}/{z}/{x}/{y}": {
+      "get": {
+        "tags": [
+          "map"
+        ],
+        "summary": "Get Tile",
+        "description": "Kartenkachel über das Backend (standard = OpenStreetMap, aerial = Esri World Imagery).\n\nDatenschutz: Der Browser spricht die Kachelserver nicht direkt an; diese sehen nur das Backend.",
+        "operationId": "get_tile_api_v1_tiles__basemap___z___x___y__get",
+        "parameters": [
+          {
+            "name": "basemap",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "standard",
+                "aerial"
+              ],
+              "type": "string",
+              "title": "Basemap"
+            }
+          },
+          {
+            "name": "z",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 19,
+              "minimum": 0,
+              "title": "Z"
+            }
+          },
+          {
+            "name": "x",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "X"
+            }
+          },
+          {
+            "name": "y",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Y"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "image/png": {},
+              "image/jpeg": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/forecast": {
+      "post": {
+        "tags": [
+          "forecast"
+        ],
+        "summary": "Post Forecast",
+        "operationId": "post_forecast_api_v1_forecast_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForecastRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Breakdown": {
+        "properties": {
+          "basis": {
+            "type": "string",
+            "const": "count",
+            "title": "Basis",
+            "default": "count"
+          },
+          "data_status": {
+            "$ref": "#/components/schemas/DataStatus"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BreakdownItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data_status",
+          "items"
+        ],
+        "title": "Breakdown"
+      },
+      "BreakdownItem": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "building_count": {
+            "type": "integer",
+            "title": "Building Count"
+          },
+          "potential_kwp": {
+            "type": "number",
+            "title": "Potential Kwp"
+          },
+          "share_pct": {
+            "type": "number",
+            "title": "Share Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "building_count",
+          "potential_kwp",
+          "share_pct"
+        ],
+        "title": "BreakdownItem"
+      },
+      "BuildingCategory": {
+        "type": "string",
+        "enum": [
+          "residential",
+          "mixed",
+          "public",
+          "commercial",
+          "agricultural",
+          "ancillary",
+          "other"
+        ],
+        "title": "BuildingCategory"
+      },
+      "BuildingCollection": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "FeatureCollection",
+            "title": "Type",
+            "default": "FeatureCollection"
+          },
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/BuildingFeature"
+            },
+            "type": "array",
+            "title": "Features"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "features"
+        ],
+        "title": "BuildingCollection"
+      },
+      "BuildingFeature": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "Feature",
+            "title": "Type",
+            "default": "Feature"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "geometry": {
+            "$ref": "#/components/schemas/PolygonGeometry"
+          },
+          "properties": {
+            "$ref": "#/components/schemas/BuildingProps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "geometry",
+          "properties"
+        ],
+        "title": "BuildingFeature"
+      },
+      "BuildingPoints": {
+        "properties": {
+          "status_codes": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SolarStatus"
+            },
+            "type": "object",
+            "title": "Status Codes"
+          },
+          "points": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array",
+              "maxItems": 5,
+              "minItems": 5
+            },
+            "type": "array",
+            "title": "Points"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status_codes",
+          "points"
+        ],
+        "title": "BuildingPoints",
+        "description": "Kompakte Übersicht aller Gebäude: [[lon, lat, status, eignungsklasse, potenzial_kwp], …]\n(status 1 = Anlage, 2 = Potenzial, 0 = kein nennenswertes Potenzial; Eignungsklasse und\ninstallierbare Leistung laut LUBW)."
+      },
+      "BuildingProfile": {
+        "properties": {
+          "roof_area_m2": {
+            "type": "number",
+            "title": "Roof Area M2"
+          },
+          "pv_area_m2": {
+            "type": "number",
+            "title": "Pv Area M2"
+          },
+          "installed_known": {
+            "type": "boolean",
+            "title": "Installed Known"
+          },
+          "utilization_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Utilization Pct"
+          },
+          "open_kwp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open Kwp"
+          },
+          "price_eur_per_kwp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Eur Per Kwp"
+          },
+          "price_outside_table": {
+            "type": "boolean",
+            "title": "Price Outside Table",
+            "default": false
+          },
+          "investment_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Investment Eur"
+          },
+          "operating_cost_eur_per_year": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operating Cost Eur Per Year"
+          },
+          "energy_kwh_per_year": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Kwh Per Year"
+          },
+          "co2_savings_kg_per_year": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Co2 Savings Kg Per Year"
+          },
+          "amortization_years": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amortization Years"
+          },
+          "electricity_price_ct_per_kwh": {
+            "type": "number",
+            "title": "Electricity Price Ct Per Kwh"
+          },
+          "electricity_price_is_example": {
+            "type": "boolean",
+            "title": "Electricity Price Is Example",
+            "default": false
+          },
+          "price_increase_ct_per_kwh_per_year": {
+            "type": "number",
+            "title": "Price Increase Ct Per Kwh Per Year",
+            "default": 0.0
+          },
+          "degradation_pct_per_year": {
+            "type": "number",
+            "title": "Degradation Pct Per Year",
+            "default": 0.0
+          },
+          "operating_cost_pct": {
+            "type": "number",
+            "title": "Operating Cost Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "roof_area_m2",
+          "pv_area_m2",
+          "installed_known",
+          "electricity_price_ct_per_kwh",
+          "operating_cost_pct"
+        ],
+        "title": "BuildingProfile",
+        "description": "Steckbrief beim Klick auf ein Gebäude in der Karte (Formeln: data_service.building_profile)."
+      },
+      "BuildingProps": {
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/BuildingCategory"
+          },
+          "building_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Building Type"
+          },
+          "alkis_function": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alkis Function"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "osm_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Osm Id"
+          },
+          "footprint_m2": {
+            "type": "number",
+            "title": "Footprint M2"
+          },
+          "solar_status": {
+            "$ref": "#/components/schemas/SolarStatus"
+          },
+          "installed_kwp": {
+            "type": "number",
+            "title": "Installed Kwp",
+            "default": 0.0
+          },
+          "solar_sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Solar Sources",
+            "default": []
+          },
+          "potential_kwp": {
+            "type": "number",
+            "title": "Potential Kwp"
+          },
+          "potential_status": {
+            "$ref": "#/components/schemas/DataStatus"
+          },
+          "potential_kwh_per_year": {
+            "type": "number",
+            "title": "Potential Kwh Per Year",
+            "default": 0.0
+          },
+          "co2_savings_kg_per_year": {
+            "type": "number",
+            "title": "Co2 Savings Kg Per Year",
+            "default": 0.0
+          },
+          "roof_faces": {
+            "type": "integer",
+            "title": "Roof Faces",
+            "default": 0
+          },
+          "suitable_roof_faces": {
+            "type": "integer",
+            "title": "Suitable Roof Faces",
+            "default": 0
+          },
+          "suitability": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SuitabilityClass"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "roof_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoofType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "postal_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postal Code"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BuildingProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "footprint_m2",
+          "solar_status",
+          "potential_kwp",
+          "potential_status"
+        ],
+        "title": "BuildingProps"
+      },
+      "DataSource": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "retrieved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieved At"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "url"
+        ],
+        "title": "DataSource"
+      },
+      "DataStatus": {
+        "type": "string",
+        "enum": [
+          "verified",
+          "estimated",
+          "example",
+          "pending"
+        ],
+        "title": "DataStatus"
+      },
+      "ElectricityPrice": {
+        "properties": {
+          "value_ct_per_kwh": {
+            "type": "number",
+            "title": "Value Ct Per Kwh"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "is_example": {
+            "type": "boolean",
+            "title": "Is Example",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "value_ct_per_kwh",
+          "source"
+        ],
+        "title": "ElectricityPrice"
+      },
+      "ForecastAssumptions": {
+        "properties": {
+          "investment_eur_per_kwp": {
+            "type": "number",
+            "title": "Investment Eur Per Kwp"
+          },
+          "specific_yield_kwh_per_kwp": {
+            "type": "number",
+            "title": "Specific Yield Kwh Per Kwp"
+          },
+          "operating_cost_pct_of_investment": {
+            "type": "number",
+            "title": "Operating Cost Pct Of Investment"
+          },
+          "co2_kg_per_kwh": {
+            "type": "number",
+            "title": "Co2 Kg Per Kwh"
+          },
+          "consumption_gwh_per_year": {
+            "type": "number",
+            "title": "Consumption Gwh Per Year"
+          },
+          "price_increase_ct_per_kwh_per_year": {
+            "type": "number",
+            "title": "Price Increase Ct Per Kwh Per Year",
+            "default": 0.0
+          },
+          "price_increase_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Increase Source"
+          },
+          "price_increase_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Increase Url"
+          },
+          "degradation_pct_per_year": {
+            "type": "number",
+            "title": "Degradation Pct Per Year",
+            "default": 0.0
+          },
+          "status": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DataStatus"
+            },
+            "type": "object",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "investment_eur_per_kwp",
+          "specific_yield_kwh_per_kwp",
+          "operating_cost_pct_of_investment",
+          "co2_kg_per_kwh",
+          "consumption_gwh_per_year",
+          "status"
+        ],
+        "title": "ForecastAssumptions"
+      },
+      "ForecastRequest": {
+        "properties": {
+          "target_utilization_pct": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Target Utilization Pct"
+          },
+          "horizon_years": {
+            "type": "integer",
+            "maximum": 30.0,
+            "minimum": 1.0,
+            "title": "Horizon Years"
+          },
+          "electricity_price_ct_per_kwh": {
+            "type": "number",
+            "maximum": 200.0,
+            "minimum": 0.0,
+            "title": "Electricity Price Ct Per Kwh"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_utilization_pct",
+          "horizon_years",
+          "electricity_price_ct_per_kwh"
+        ],
+        "title": "ForecastRequest"
+      },
+      "ForecastResponse": {
+        "properties": {
+          "data_status": {
+            "$ref": "#/components/schemas/DataStatus"
+          },
+          "existing_power_mwp": {
+            "type": "number",
+            "title": "Existing Power Mwp"
+          },
+          "potential_power_mwp": {
+            "type": "number",
+            "title": "Potential Power Mwp"
+          },
+          "target_power_mwp": {
+            "type": "number",
+            "title": "Target Power Mwp"
+          },
+          "new_power_mwp": {
+            "type": "number",
+            "title": "New Power Mwp"
+          },
+          "investment_eur": {
+            "type": "number",
+            "title": "Investment Eur"
+          },
+          "purchase_cost_eur": {
+            "type": "number",
+            "title": "Purchase Cost Eur",
+            "default": 0.0
+          },
+          "maintenance_cost_total_eur": {
+            "type": "number",
+            "title": "Maintenance Cost Total Eur",
+            "default": 0.0
+          },
+          "profit_eur": {
+            "type": "number",
+            "title": "Profit Eur"
+          },
+          "electricity_value_eur_per_year": {
+            "type": "number",
+            "title": "Electricity Value Eur Per Year"
+          },
+          "operating_cost_eur_per_year": {
+            "type": "number",
+            "title": "Operating Cost Eur Per Year"
+          },
+          "amortization_years": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amortization Years"
+          },
+          "energy_per_year_mwh": {
+            "type": "number",
+            "title": "Energy Per Year Mwh"
+          },
+          "energy_total_mwh": {
+            "type": "number",
+            "title": "Energy Total Mwh"
+          },
+          "consumption_gwh_per_year": {
+            "type": "number",
+            "title": "Consumption Gwh Per Year"
+          },
+          "solar_share_pct": {
+            "type": "number",
+            "title": "Solar Share Pct"
+          },
+          "co2_savings_t_per_year": {
+            "type": "number",
+            "title": "Co2 Savings T Per Year"
+          },
+          "co2_savings_t_total": {
+            "type": "number",
+            "title": "Co2 Savings T Total"
+          },
+          "assumptions": {
+            "$ref": "#/components/schemas/ForecastAssumptions"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/ForecastYear"
+            },
+            "type": "array",
+            "title": "Timeline"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data_status",
+          "existing_power_mwp",
+          "potential_power_mwp",
+          "target_power_mwp",
+          "new_power_mwp",
+          "investment_eur",
+          "profit_eur",
+          "electricity_value_eur_per_year",
+          "operating_cost_eur_per_year",
+          "amortization_years",
+          "energy_per_year_mwh",
+          "energy_total_mwh",
+          "consumption_gwh_per_year",
+          "solar_share_pct",
+          "co2_savings_t_per_year",
+          "co2_savings_t_total",
+          "assumptions",
+          "timeline"
+        ],
+        "title": "ForecastResponse"
+      },
+      "ForecastYear": {
+        "properties": {
+          "year_index": {
+            "type": "integer",
+            "title": "Year Index"
+          },
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "cumulative_balance_eur": {
+            "type": "number",
+            "title": "Cumulative Balance Eur"
+          },
+          "electricity_price_ct_per_kwh": {
+            "type": "number",
+            "title": "Electricity Price Ct Per Kwh",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "year_index",
+          "year",
+          "cumulative_balance_eur"
+        ],
+        "title": "ForecastYear"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InstallationCollection": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "FeatureCollection",
+            "title": "Type",
+            "default": "FeatureCollection"
+          },
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/InstallationFeature"
+            },
+            "type": "array",
+            "title": "Features"
+          },
+          "unlocated_count": {
+            "type": "integer",
+            "title": "Unlocated Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "features"
+        ],
+        "title": "InstallationCollection"
+      },
+      "InstallationFeature": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "Feature",
+            "title": "Type",
+            "default": "Feature"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "geometry": {
+            "$ref": "#/components/schemas/PointGeometry"
+          },
+          "properties": {
+            "$ref": "#/components/schemas/InstallationProps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "geometry",
+          "properties"
+        ],
+        "title": "InstallationFeature"
+      },
+      "InstallationProps": {
+        "properties": {
+          "power_kwp": {
+            "type": "number",
+            "title": "Power Kwp"
+          },
+          "commissioned_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commissioned On"
+          },
+          "postal_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postal Code"
+          },
+          "street": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Street"
+          },
+          "house_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "House Number"
+          },
+          "plant_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plant Type"
+          },
+          "building_use": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Building Use"
+          },
+          "building_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Building Id"
+          },
+          "building_point": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Building Point"
+          }
+        },
+        "type": "object",
+        "required": [
+          "power_kwp"
+        ],
+        "title": "InstallationProps"
+      },
+      "LabeledOption": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Value"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "LabeledOption"
+      },
+      "Meta": {
+        "properties": {
+          "installed_status": {
+            "$ref": "#/components/schemas/DataStatus"
+          },
+          "potential_status": {
+            "$ref": "#/components/schemas/DataStatus"
+          },
+          "suitability_status": {
+            "$ref": "#/components/schemas/DataStatus"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/LabeledOption"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "suitability_classes": {
+            "items": {
+              "$ref": "#/components/schemas/LabeledOption"
+            },
+            "type": "array",
+            "title": "Suitability Classes"
+          },
+          "roof_types": {
+            "items": {
+              "$ref": "#/components/schemas/LabeledOption"
+            },
+            "type": "array",
+            "title": "Roof Types"
+          },
+          "pv_views": {
+            "items": {
+              "$ref": "#/components/schemas/LabeledOption"
+            },
+            "type": "array",
+            "title": "Pv Views"
+          },
+          "postal_codes": {
+            "items": {
+              "$ref": "#/components/schemas/LabeledOption"
+            },
+            "type": "array",
+            "title": "Postal Codes"
+          },
+          "sliders": {
+            "$ref": "#/components/schemas/Sliders"
+          },
+          "electricity_price": {
+            "$ref": "#/components/schemas/ElectricityPrice"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/DataSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "data_as_of": {
+            "type": "string",
+            "format": "date",
+            "title": "Data As Of"
+          }
+        },
+        "type": "object",
+        "required": [
+          "installed_status",
+          "potential_status",
+          "suitability_status",
+          "categories",
+          "suitability_classes",
+          "roof_types",
+          "pv_views",
+          "postal_codes",
+          "sliders",
+          "electricity_price",
+          "sources",
+          "data_as_of"
+        ],
+        "title": "Meta"
+      },
+      "PointGeometry": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "Point",
+            "title": "Type",
+            "default": "Point"
+          },
+          "coordinates": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Coordinates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "coordinates"
+        ],
+        "title": "PointGeometry"
+      },
+      "PolygonGeometry": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "Polygon",
+              "MultiPolygon"
+            ],
+            "title": "Type"
+          },
+          "coordinates": {
+            "items": {},
+            "type": "array",
+            "title": "Coordinates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "title": "PolygonGeometry"
+      },
+      "PostalAreaCollection": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "FeatureCollection",
+            "title": "Type",
+            "default": "FeatureCollection"
+          },
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/PostalAreaFeature"
+            },
+            "type": "array",
+            "title": "Features"
+          },
+          "potential_status": {
+            "$ref": "#/components/schemas/DataStatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "features",
+          "potential_status"
+        ],
+        "title": "PostalAreaCollection"
+      },
+      "PostalAreaFeature": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "Feature",
+            "title": "Type",
+            "default": "Feature"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "geometry": {
+            "$ref": "#/components/schemas/PolygonGeometry"
+          },
+          "properties": {
+            "$ref": "#/components/schemas/PostalAreaProps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "geometry",
+          "properties"
+        ],
+        "title": "PostalAreaFeature"
+      },
+      "PostalAreaProps": {
+        "properties": {
+          "postal_code": {
+            "type": "string",
+            "title": "Postal Code"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "installed_power_mwp": {
+            "type": "number",
+            "title": "Installed Power Mwp"
+          },
+          "installed_roof_power_mwp": {
+            "type": "number",
+            "title": "Installed Roof Power Mwp"
+          },
+          "potential_power_mwp": {
+            "type": "number",
+            "title": "Potential Power Mwp"
+          },
+          "potential_energy_mwh_per_year": {
+            "type": "number",
+            "title": "Potential Energy Mwh Per Year"
+          },
+          "utilization_pct": {
+            "type": "number",
+            "title": "Utilization Pct"
+          },
+          "installation_count": {
+            "type": "integer",
+            "title": "Installation Count"
+          },
+          "located_installation_count": {
+            "type": "integer",
+            "title": "Located Installation Count"
+          },
+          "balcony_count": {
+            "type": "integer",
+            "title": "Balcony Count"
+          },
+          "buildings_with_solar": {
+            "type": "integer",
+            "title": "Buildings With Solar"
+          },
+          "buildings_with_potential": {
+            "type": "integer",
+            "title": "Buildings With Potential"
+          },
+          "label_point": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Point"
+          }
+        },
+        "type": "object",
+        "required": [
+          "postal_code",
+          "installed_power_mwp",
+          "installed_roof_power_mwp",
+          "potential_power_mwp",
+          "potential_energy_mwh_per_year",
+          "utilization_pct",
+          "installation_count",
+          "located_installation_count",
+          "balcony_count",
+          "buildings_with_solar",
+          "buildings_with_potential"
+        ],
+        "title": "PostalAreaProps"
+      },
+      "Range": {
+        "properties": {
+          "min": {
+            "type": "number",
+            "title": "Min"
+          },
+          "max": {
+            "type": "number",
+            "title": "Max"
+          },
+          "step": {
+            "type": "number",
+            "title": "Step"
+          },
+          "default": {
+            "type": "number",
+            "title": "Default"
+          }
+        },
+        "type": "object",
+        "required": [
+          "min",
+          "max",
+          "step",
+          "default"
+        ],
+        "title": "Range"
+      },
+      "RoofType": {
+        "type": "string",
+        "enum": [
+          "flat",
+          "pitched",
+          "mixed",
+          "unknown"
+        ],
+        "title": "RoofType",
+        "description": "Dachform je Gebäude aus LUBW `RoofType` der Dachseiten."
+      },
+      "Sliders": {
+        "properties": {
+          "target_utilization_pct": {
+            "$ref": "#/components/schemas/Range"
+          },
+          "horizon_years": {
+            "$ref": "#/components/schemas/Range"
+          },
+          "electricity_price_ct_per_kwh": {
+            "$ref": "#/components/schemas/Range"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_utilization_pct",
+          "horizon_years",
+          "electricity_price_ct_per_kwh"
+        ],
+        "title": "Sliders"
+      },
+      "SolarStatus": {
+        "type": "string",
+        "enum": [
+          "existing",
+          "potential",
+          "none"
+        ],
+        "title": "SolarStatus"
+      },
+      "Status": {
+        "properties": {
+          "installed_power_mwp": {
+            "type": "number",
+            "title": "Installed Power Mwp"
+          },
+          "installed_roof_power_mwp": {
+            "type": "number",
+            "title": "Installed Roof Power Mwp"
+          },
+          "potential_power_mwp": {
+            "type": "number",
+            "title": "Potential Power Mwp"
+          },
+          "potential_energy_mwh_per_year": {
+            "type": "number",
+            "title": "Potential Energy Mwh Per Year"
+          },
+          "utilization_pct": {
+            "type": "number",
+            "title": "Utilization Pct"
+          },
+          "installation_count": {
+            "type": "integer",
+            "title": "Installation Count"
+          },
+          "located_installation_count": {
+            "type": "integer",
+            "title": "Located Installation Count"
+          },
+          "balcony_count": {
+            "type": "integer",
+            "title": "Balcony Count"
+          },
+          "installed_status": {
+            "$ref": "#/components/schemas/DataStatus"
+          },
+          "potential_status": {
+            "$ref": "#/components/schemas/DataStatus"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "data_as_of": {
+            "type": "string",
+            "format": "date",
+            "title": "Data As Of"
+          }
+        },
+        "type": "object",
+        "required": [
+          "installed_power_mwp",
+          "installed_roof_power_mwp",
+          "potential_power_mwp",
+          "potential_energy_mwh_per_year",
+          "utilization_pct",
+          "installation_count",
+          "located_installation_count",
+          "balcony_count",
+          "installed_status",
+          "potential_status",
+          "source",
+          "data_as_of"
+        ],
+        "title": "Status"
+      },
+      "SuitabilityClass": {
+        "type": "integer",
+        "enum": [
+          1,
+          2,
+          3,
+          6,
+          8,
+          0
+        ],
+        "title": "SuitabilityClass",
+        "description": "Eignungsklassen laut LUBW-Shapefile (Spalte `Eignung`), siehe docs/datenmodell.md."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000"
+    }
+  ]
+}

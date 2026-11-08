@@ -1,0 +1,182 @@
+/* ==========================================================================
+   Design-Tokens
+   Farben: Corporate Design Manual Stadt Pforzheim (Juni 2021), Stadtfarben S. 46
+   Layout/Abstände/Graustufen: freigegebene Figma-Mockups
+   Das Mockup-Akzentblau (#2563eb) ist durchgängig durch Pforzheim-Blau ersetzt.
+   ========================================================================== */
+:root {
+  /* Stadtfarben */
+  --pf-blue: #1e5078;   /* HKS 42 – Primärfarbe */
+  --pf-yellow: #f0d23c; /* HKS 5 */
+  --pf-red: #c83737;    /* HKS 13 */
+
+  /* Abgeleitete Blautöne (Flächen, Rahmen, Kartenklassen) */
+  --pf-blue-50: #eef3f8;
+  --pf-blue-100: #dbe5ef;
+  --pf-blue-200: #c3d3e2;
+  --pf-blue-400: #6f93b4;
+  --pf-blue-700: #163c5a;
+
+  /* Graustufen aus dem Mockup */
+  --text: #111827;
+  --text-muted: #6b7280;
+  --text-subtle: #9ca3af;
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
+  --surface: #ffffff;
+  --surface-muted: #f3f4f6;
+  --surface-subtle: #f9fafb;
+  --map-bg: #f4f5f5;
+
+  /* Diagrammfarben (Kategorien) – Stadtfarben zuerst */
+  --chart-1: var(--pf-blue);
+  --chart-2: var(--pf-yellow);
+  --chart-3: var(--pf-red);
+  --chart-4: #94a3b8;
+  --chart-5: #d1d5db;
+
+  /* Kartenklassen: genutztes Potenzial */
+  --map-class-1: var(--pf-blue-50);
+  --map-class-2: var(--pf-blue-200);
+  --map-class-3: var(--pf-blue-400);
+  --map-class-4: var(--pf-blue);
+
+  /* Schrift: Hausschrift Gotham HTF (lizenzpflichtig) – bis zur Webfont-Lizenz Montserrat */
+  --font: "Gotham HTF", "Gotham", "Montserrat", Arial, sans-serif;
+
+  --radius-card: 12px;
+  --radius-field: 8px;
+  --radius-small: 6px;
+  --page-gutter: 40px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  /* Barrierefreiheit laut CD-Manual: keine Ligaturen */
+  font-variant-ligatures: none;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+p,
+h1,
+h2,
+h3 {
+  margin: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* --------- Seitengerüst --------- */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px var(--page-gutter) 12px;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --page-gutter: 16px;
+  }
+}
+
+/* --------- Karten / Flächen --------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.footnote {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: var(--pf-blue);
+  font-size: 12px;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: 100px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+:focus-visible {
+  outline: 2px solid var(--pf-blue);
+  outline-offset: 2px;
+}
+
+.error-banner {
+  padding: 10px 14px;
+  border-radius: var(--radius-field);
+  border: 1px solid #f3c4c4;
+  background: #fbeeee;
+  color: var(--pf-red);
+  font-size: 13px;
+}

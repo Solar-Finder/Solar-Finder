@@ -1,0 +1,148 @@
+.map {
+  width: 100%;
+  height: 100%;
+  background: var(--map-bg);
+  font-family: var(--font);
+}
+
+/* Beschriftung der PLZ-Gebiete */
+.areaLabel {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 0;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 23px;
+  pointer-events: none;
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.35);
+}
+
+.areaLabelCompact {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* Kartenwerkzeuge oben rechts */
+.tools {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toolGroup {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.toolGroup button {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.toolGroup button:hover {
+  filter: brightness(0.96);
+}
+
+.toolDivider {
+  height: 1px;
+  background: var(--border);
+}
+
+/* ---------- Steckbrief beim Anklicken eines Gebäudes (Leaflet-Popup) ---------- */
+.profilePopup :global(.leaflet-popup-content-wrapper) {
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(17, 24, 39, 0.14);
+}
+
+.profilePopup :global(.leaflet-popup-content) {
+  margin: 12px 14px;
+  line-height: normal;
+}
+
+.profilePopup :global(.leaflet-popup-close-button) {
+  top: 6px;
+  right: 6px;
+  color: var(--text-muted);
+}
+
+.profile {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 236px;
+  font-family: var(--font);
+  font-size: 11px;
+  color: var(--text);
+}
+
+.profileHead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-right: 18px; /* Platz für das Schließen-Kreuz */
+  font-size: 12px;
+}
+
+.profileHead i {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(17, 24, 39, 0.12);
+}
+
+.profileSub {
+  color: var(--text-muted);
+}
+
+.profileSection {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--surface-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text-muted);
+}
+
+.profileRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profileRow span:first-child {
+  color: var(--text-muted);
+}
+
+.profileRow span:last-child {
+  text-align: right;
+}
+
+.profileStrong {
+  font-weight: 600;
+}
+
+.profileFoot {
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--text-subtle);
+}
