@@ -455,8 +455,8 @@ def forecast(req: ForecastRequest) -> ForecastResponse:
 
     Ertrag und CO₂ aus LUBW, Bestand aus MaStR (Gebäudesolaranlagen); Kosten und Verbrauch
     sind Beispielwerte. Investition = Anschaffung + Instandhaltung (1 %/Jahr) über den Zeitraum.
-    Gewinn = Σ Stromwert − Investition. Amortisation und Saldo-Kurve rechnen nur mit der Anschaffung
-    (ohne Instandhaltung). Strompreis steigt jährlich um 0,6 ct/kWh, Ertrag sinkt um 0,25 % je Jahr
+    Gewinn = Σ Stromwert − Investition. Die Saldo-Kurve zieht Anschaffung und Instandhaltung ab
+    (Endwert = Gewinn); die Amortisation rechnet nur mit der Anschaffung. Strompreis steigt jährlich um 0,6 ct/kWh, Ertrag sinkt um 0,25 % je Jahr
     (beides Energieatlas BW); ohne Zinsen und Steuern.
     """
     m = get_model()
@@ -473,16 +473,17 @@ def forecast(req: ForecastRequest) -> ForecastResponse:
     energy_total = sum(_energy_for_year(y, energy0_kwh) for y in years)
     energy_kwh = energy_total / req.horizon_years  # Ø Jahresertrag im Zeitraum
     # Investition (gesamt) = Anschaffung + Instandhaltung (1 % der Anschaffung pro Jahr) über den Zeitraum;
-    # der Gewinn zieht sie einmal ab. Amortisation und Saldo-Kurve: nur Anschaffung gegen Stromwert.
+    # der Gewinn zieht sie einmal ab. Saldo-Kurve: −Anschaffung, dann je Jahr + Stromwert − Instandhaltung,
+    # damit ihr Endwert dem Gewinn entspricht. Amortisation: nur Anschaffung gegen Stromwert.
     purchase = new_kwp * INVESTMENT_EUR_PER_KWP
     opex = purchase * OPERATING_COST_PCT / 100
     maintenance_total = opex * req.horizon_years
     investment = purchase + maintenance_total
     price0 = req.electricity_price_ct_per_kwh
     revenues = [_value_for_year(y, energy0_kwh, price0) for y in years]  # Stromwert je Jahr
-    cumulative = [-purchase]  # Saldo der Anschaffung (ohne Instandhaltung) – schneidet 0 bei der Amortisation
+    cumulative = [-purchase]  # Saldo inkl. Instandhaltung – Endwert = Gewinn
     for r in revenues:
-        cumulative.append(cumulative[-1] + r)
+        cumulative.append(cumulative[-1] + r - opex)
     value = sum(revenues) / len(revenues) if revenues else 0.0  # Ø Stromwert (Preis steigt, Ertrag sinkt)
     profit = sum(revenues) - investment
     amortization = _amortization(purchase, energy0_kwh, price0)

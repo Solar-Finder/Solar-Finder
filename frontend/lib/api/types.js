@@ -128,7 +128,7 @@
  * @property {number} co2_savings_t_per_year
  * @property {number} co2_savings_t_total
  * @property {{investment_eur_per_kwp: number, specific_yield_kwh_per_kwp: number, operating_cost_pct_of_investment: number, co2_kg_per_kwh: number, price_increase_ct_per_kwh_per_year: number, degradation_pct_per_year: number}} assumptions
- * @property {{year_index: number, year: number, cumulative_balance_eur: number, electricity_price_ct_per_kwh: number}[]} timeline  Saldo = −Anschaffung + Σ Stromwert
+ * @property {{year_index: number, year: number, cumulative_balance_eur: number, electricity_price_ct_per_kwh: number}[]} timeline  Saldo = −Anschaffung + Σ (Stromwert − Instandhaltung); Endwert = Gewinn
  */
 
 export {};

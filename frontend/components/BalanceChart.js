@@ -26,7 +26,35 @@ function niceTicks(min, max, maxCount = 5) {
   return [min, max];
 }
 
-/** Kumulierter Saldo mit Amortisationspunkt (Mockup „Finanzielle Entwicklung“). */
+/** Erster Nulldurchgang des Saldos (Jahre, linear zwischen den Jahreswerten); null, wenn nicht erreicht */
+function breakEven(timeline) {
+  for (let i = 1; i < timeline.length; i++) {
+    const a = timeline[i - 1].cumulative_balance_eur;
+    const b = timeline[i].cumulative_balance_eur;
+    if (a < 0 && b >= 0) {
+      const t0 = timeline[i - 1].year_index;
+      return t0 + (-a / (b - a)) * (timeline[i].year_index - t0);
+    }
+  }
+  return null;
+}
+
+/** Saldo (Mio. €) zum Zeitpunkt t (Jahre), linear zwischen den Jahreswerten */
+function valueAt(timeline, values, t) {
+  for (let i = 1; i < timeline.length; i++) {
+    const t0 = timeline[i - 1].year_index;
+    const t1 = timeline[i].year_index;
+    if (t <= t1) return values[i - 1] + ((t - t0) / (t1 - t0 || 1)) * (values[i] - values[i - 1]);
+  }
+  return values[values.length - 1];
+}
+
+/**
+ * Kumulierter Saldo (Anschaffung + Instandhaltung gegen Stromwert) mit Amortisationspunkt
+ * (Mockup „Finanzielle Entwicklung“). Der Endwert entspricht dem Gewinn der Überschlagsrechnung; der
+ * Amortisationspunkt ist derselbe Wert wie in der Überschlagsrechnung (nur Anschaffung, ohne Instandhaltung)
+ * und liegt daher etwas vor dem Nulldurchgang der Linie.
+ */
 export default function BalanceChart({ timeline, amortizationYears, investmentEur }) {
   const wrapRef = useRef(null);
   const [width, setWidth] = useState(744);
@@ -54,14 +82,16 @@ export default function BalanceChart({ timeline, amortizationYears, investmentEu
   const pts = timeline.map((p, i) => [x(p.year_index), y(values[i])]);
   const line = pts.map(([px, py], i) => `${i ? "L" : "M"}${px.toFixed(1)},${py.toFixed(1)}`).join(" ");
 
+  // Amortisation wie in der Überschlagsrechnung (nur Anschaffung); Punkt sitzt auf der Linie
   const amort = amortizationYears != null && amortizationYears > 0 && amortizationYears <= years ? amortizationYears : null;
+  const breakEvenT = breakEven(timeline); // Nulldurchgang der Linie (inkl. Instandhaltung)
   const end = pts[pts.length - 1];
   const endValue = values[values.length - 1];
 
-  // Fläche des positiven Saldos (ab Amortisation bis Ende)
+  // Fläche des positiven Saldos (ab Nulldurchgang der Linie bis Ende)
   let area = null;
-  if (amort != null) {
-    const ax = x(amort);
+  if (breakEvenT != null) {
+    const ax = x(breakEvenT);
     const after = pts.filter(([px]) => px > ax);
     area = `M${ax},${y(0)} ` + after.map(([px, py]) => `L${px},${py}`).join(" ") + ` L${end[0]},${y(0)} Z`;
   }
@@ -113,7 +143,7 @@ export default function BalanceChart({ timeline, amortizationYears, investmentEu
         {amort != null && (
           <g>
             <line x1={x(amort)} x2={x(amort)} y1={71} y2={137} stroke="var(--border-strong)" />
-            <circle cx={x(amort)} cy={y(0)} r="4" fill="var(--pf-blue)" stroke="#fff" strokeWidth="1.5" />
+            <circle cx={x(amort)} cy={y(valueAt(timeline, values, amort))} r="4" fill="var(--pf-blue)" stroke="#fff" strokeWidth="1.5" />
             <foreignObject x={calloutX} y={41} width={calloutW} height={62}>
               <div
                 style={{

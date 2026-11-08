@@ -267,7 +267,7 @@ class ForecastRequest(BaseModel):
 class ForecastYear(BaseModel):
     year_index: int  # 0 = Start
     year: int
-    cumulative_balance_eur: float  # −Anschaffung + Σ Stromwert (ohne Instandhaltung); < 0 bis Amortisation
+    cumulative_balance_eur: float  # −Anschaffung + Σ (Stromwert − Instandhaltung); Endwert = Gewinn
     electricity_price_ct_per_kwh: float = 0.0  # Strompreis in diesem Jahr (Ausgangswert + 0,6 ct/kWh je Jahr)
 
 

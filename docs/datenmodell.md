@@ -144,7 +144,7 @@ Eingaben: Ziel-Ausnutzung `p` (%), Zeitraum `T` (Jahre), Strompreis `c` (ct/kWh)
 | Stromwert im Jahr t (€) | `E_t × c_t / 100`, `c_t = c + 0,6 ct/kWh × (t − 1)` | Eingabe + Energieatlas BW |
 | Gewinn | Σ Stromwert (Jahr 1…T) − Investition (gesamt) | abgeleitet |
 | Amortisation | Zeitpunkt, ab dem Σ Stromwert ≥ **Anschaffung** (ohne Instandhaltung); innerhalb des Jahres anteilig; Strompreis im Jahr t = Ausgangswert + 0,6 ct/kWh × (t − 1) ([Energieatlas BW](https://www.energieatlas-bw.de/sonne/gebaeude/grundlagen), „Steigerung der Stromkosten“) | abgeleitet |
-| Saldo-Kurve (Diagramm) | `−Anschaffung + Σ Stromwert (Jahr 1…t)` – schneidet 0 bei der Amortisation; Endwert = Gewinn + Instandhaltung | abgeleitet |
+| Saldo-Kurve (Diagramm) | `−Anschaffung + Σ (Stromwert − Instandhaltung) (Jahr 1…t)` – Endwert = Gewinn; markierter Amortisationspunkt = Amortisationsdauer (nur Anschaffung), liegt daher vor dem Nulldurchgang | abgeleitet |
 | Anteil am Verbrauch | `Ø E ÷ 300 GWh` | example |
 
 Vereinfachungen: Ertrag sinkt um 0,25 % pro Jahr, Strompreis steigt linear um 0,6 ct/kWh pro Jahr, keine Zinsen, alle neuen

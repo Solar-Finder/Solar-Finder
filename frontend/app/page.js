@@ -321,7 +321,7 @@ function BalanceInfo({ forecast: f, config }) {
   const last = f?.timeline?.[f.timeline.length - 1];
   return (
     <>
-      <Formula>Saldo im Jahr t = − Anschaffung + Σ Jahr 1…t Stromwert</Formula>
+      <Formula>Saldo im Jahr t = − Anschaffung + Σ Jahr 1…t (Stromwert − Instandhaltung)</Formula>
       <Assumption>Stromwert im Jahr t = Stromerzeugung im Jahr t × Strompreis im Jahr t</Assumption>
       <Assumption>
         Strompreis im Jahr t = {p0 != null ? `${fmtFlex(p0, 1)} ct/kWh` : "Ausgangswert"} + {fmtFlex(inc, 1)} ct/kWh × (t − 1)
@@ -331,13 +331,18 @@ function BalanceInfo({ forecast: f, config }) {
         Alterung: Ertrag sinkt um {fmtFlex(a?.degradation_pct_per_year ?? 0.25, 2)} % pro Jahr (Energieatlas BW)
       </Assumption>
       <Assumption>
-        Die Linie startet bei den Anschaffungskosten, ohne Instandhaltung – wie die Amortisation. Der Gewinn zieht
-        zusätzlich die Instandhaltung ({a ? `${fmtFlex(a.operating_cost_pct_of_investment, 1)} %` : "–"} der Anschaffung ×{" "}
-        {n ?? "N"} Jahre{f ? ` = ${fmtMio(f.maintenance_cost_total_eur)}` : ""}) ab und liegt daher unter dem Endwert.
+        Die Linie startet bei den Anschaffungskosten; jedes Jahr wird die Instandhaltung abgezogen (
+        {a ? `${fmtFlex(a.operating_cost_pct_of_investment, 1)} %` : "–"} der Anschaffung pro Jahr
+        {f ? `, über ${n ?? "N"} Jahre ${fmtMio(f.maintenance_cost_total_eur)}` : ""}). Der Endwert entspricht daher dem
+        Gewinn der Überschlagsrechnung.
+      </Assumption>
+      <Assumption>
+        Der markierte Amortisationspunkt ist derselbe Wert wie in der Überschlagsrechnung: gerechnet nur mit der
+        Anschaffung, ohne Instandhaltung. Die Linie kreuzt die Nulllinie daher etwas später.
       </Assumption>
       <Meaning>
-        Wo die Linie die Nulllinie schneidet, ist die Anschaffung amortisiert. Vereinfacht: ohne Zinsen, Steuern und
-        Förderung.
+        Ab dem Amortisationspunkt sind die Anschaffungskosten zurückverdient; ab dem Nulldurchgang der Linie zusätzlich
+        die bisherige Instandhaltung. Vereinfacht: ohne Zinsen, Steuern und Förderung.
       </Meaning>
       <Assumption>
         Quelle Preissteigerung: {a?.price_increase_source ?? "Energieatlas Baden-Württemberg (LUBW)"} –{" "}
@@ -395,7 +400,7 @@ function Development({ forecast: f, config, isExample }) {
                 <BalanceInfo forecast={f} config={config} />
               </InfoTip>
             </span>
-            <span className="note">Kumulierter Saldo der Anschaffung in Mio. €</span>
+            <span className="note">Kumulierter Saldo inkl. Instandhaltung in Mio. €</span>
           </div>
           <BalanceChart timeline={f?.timeline} amortizationYears={f?.amortization_years} investmentEur={f?.purchase_cost_eur ?? 0} />
         </div>
