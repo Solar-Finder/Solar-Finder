@@ -15,14 +15,15 @@ from __future__ import annotations
 
 import threading
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Literal, Optional
 
-from fastapi import APIRouter, FastAPI, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Path, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from . import data_service as ds
 from .geo_model import get_model
+from .sources import tiles
 from .schemas import (
     BuildingCategory,
     BuildingCollection,
@@ -143,6 +144,27 @@ def _stats_route(path: str, fn):
 _stats_route("/stats/roof-types", ds.roof_types)
 _stats_route("/stats/building-categories", ds.building_categories)
 _stats_route("/stats/suitability-classes", ds.suitability_classes)
+
+
+@api.get("/tiles/{basemap}/{z}/{x}/{y}", tags=["map"], response_class=Response,
+         responses={200: {"content": {"image/png": {}, "image/jpeg": {}}}})
+def get_tile(
+    basemap: Literal["standard", "aerial"],
+    z: int = Path(ge=0, le=tiles.MAX_ZOOM),
+    x: int = Path(ge=0),
+    y: int = Path(ge=0),
+):
+    """Kartenkachel über das Backend (standard = OpenStreetMap, aerial = Esri World Imagery).
+
+    Datenschutz: Der Browser spricht die Kachelserver nicht direkt an; diese sehen nur das Backend.
+    """
+    try:
+        data, content_type = tiles.get_tile(basemap, z, x, y)
+    except tiles.TileNotFound:
+        raise HTTPException(404, "Kachel nicht vorhanden")
+    except Exception:  # noqa: BLE001
+        raise HTTPException(502, "Kachelserver nicht erreichbar")
+    return Response(data, media_type=content_type, headers={"Cache-Control": "public, max-age=86400"})
 
 
 @api.post("/forecast", response_model=ForecastResponse, tags=["forecast"])

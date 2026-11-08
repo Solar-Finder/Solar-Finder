@@ -714,6 +714,81 @@
         }
       }
     },
+    "/api/v1/tiles/{basemap}/{z}/{x}/{y}": {
+      "get": {
+        "tags": [
+          "map"
+        ],
+        "summary": "Get Tile",
+        "description": "Kartenkachel über das Backend (standard = OpenStreetMap, aerial = Esri World Imagery).\n\nDatenschutz: Der Browser spricht die Kachelserver nicht direkt an; diese sehen nur das Backend.",
+        "operationId": "get_tile_api_v1_tiles__basemap___z___x___y__get",
+        "parameters": [
+          {
+            "name": "basemap",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "standard",
+                "aerial"
+              ],
+              "type": "string",
+              "title": "Basemap"
+            }
+          },
+          {
+            "name": "z",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 19,
+              "minimum": 0,
+              "title": "Z"
+            }
+          },
+          {
+            "name": "x",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "X"
+            }
+          },
+          {
+            "name": "y",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Y"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "image/png": {},
+              "image/jpeg": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/forecast": {
       "post": {
         "tags": [

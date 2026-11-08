@@ -1,5 +1,7 @@
 /** Kartenkonfiguration: Basiskarten, Startausschnitt, Farbklassen. */
 
+import { BASE_URL } from "@/lib/api/client";
+
 export const PFORZHEIM_CENTER = [48.8915, 8.70];
 export const DEFAULT_ZOOM = 13;
 
@@ -14,17 +16,22 @@ export const DATA_ATTRIBUTION =
 /** Ab dieser Zoomstufe werden einzelne Gebäude geladen (nach Kartenausschnitt) */
 export const BUILDINGS_MIN_ZOOM = 15;
 
+/**
+ * Basiskarten. Die Kacheln kommen über das eigene Backend (/tiles), nicht direkt von
+ * OpenStreetMap bzw. Esri – so erfahren die Kachelserver keine IP-Adressen der Nutzer
+ * (Datenschutz). Die Quellen der Kacheln stehen in backend/app/sources/tiles.py.
+ */
 export const BASEMAPS = {
   standard: {
     label: "Standard-Map",
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    url: `${BASE_URL}/tiles/standard/{z}/{x}/{y}`,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
     maxZoom: 19,
   },
   aerial: {
     label: "Luftbild",
     // TODO: für den Produktivbetrieb ggf. amtliche Orthophotos (LGL BW) einbinden
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    url: `${BASE_URL}/tiles/aerial/{z}/{x}/{y}`,
     attribution: "Luftbild &copy; Esri, Maxar, Earthstar Geographics",
     maxZoom: 19,
   },
