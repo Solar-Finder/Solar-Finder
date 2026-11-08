@@ -128,3 +128,25 @@ Die Befehle gelten für PowerShell (Standard in VS Code unter Windows).
 - Spezifischer Ertrag (kWh/kWp) und CO₂-Faktor (kg/kWh) stammen aus den LUBW-Daten. Der Strompreis ist der Day-Ahead-Börsenpreis (SMARD, Jahresmittel des letzten abgeschlossenen Jahres), er steigt in der Rechnung um 0,6 ct/kWh pro Jahr; der Ertrag sinkt durch Alterung um 0,25 % pro Jahr (beides Energieatlas BW); die Amortisation rechnet nur mit den Anschaffungskosten; laufende Kosten 1 % der Investition pro Jahr. Investition (Rechner) und Stromverbrauch sind noch Beispielwerte.
 - **Kartenkacheln** (OpenStreetMap, Esri-Luftbild) lädt der Browser über das Backend (`/api/v1/tiles/…`), nicht direkt beim Anbieter – die Kachelserver sehen so keine IP-Adressen der Nutzer. Cache: `data/cache/tiles/`, 7 Tage.
 - Alle Formeln und die Spaltenbedeutung: [`docs/datenmodell.md`](docs/datenmodell.md)
+
+## Online stellen (Vercel + Render)
+
+Frontend auf **Vercel**, Backend als Docker-Container auf **Render** (beide kostenlos). Das Backend läuft nicht auf Vercel, weil es das LUBW-Shapefile (~100 MB) mit geopandas dauerhaft im Speicher hält.
+
+### 1. Backend auf Render
+1. Auf [render.com](https://render.com) mit GitHub anmelden → **New → Blueprint** → dieses Repository wählen. Render liest `render.yaml` und baut das `Dockerfile` im Repo-Wurzelverzeichnis.
+2. `CORS_ORIGINS` erst einmal leer lassen und deployen. Danach liegt das Backend unter z. B. `https://pv-prognose-backend.onrender.com` (Test: `…/healthz`, Doku: `…/docs`).
+
+### 2. Frontend auf Vercel
+1. Auf [vercel.com](https://vercel.com) → **Add New → Project** → Repository importieren.
+2. **Root Directory: `frontend`** (Framework wird als Next.js erkannt).
+3. Umgebungsvariable `NEXT_PUBLIC_API_URL` = `https://<render-adresse>/api/v1` → Deploy. Die Variable wird beim Build eingebettet: nach einer Änderung neu deployen.
+
+### 3. CORS freigeben
+In Render beim Service unter **Environment** `CORS_ORIGINS` auf die Vercel-Adresse setzen (z. B. `https://pv-prognose.vercel.app`, mehrere kommagetrennt, ohne `/` am Ende). Für Vorschau-Deployments optional `CORS_ORIGIN_REGEX`, z. B. `https://pv-prognose-.*\.vercel\.app`.
+
+### Gut zu wissen
+- Render Free schläft nach 15 min ohne Aufruf ein. Der erste Aufruf danach dauert ca. 1 min (Container-Start + Laden der Daten), danach geht es schnell.
+- Speicher: das Backend braucht ~430 MB von 512 MB (Free-Tier). Bei Abstürzen wegen Speicher („Out of memory“ in den Render-Logs) auf den Starter-Plan wechseln.
+- `data/cache` (MaStR, Kacheln) ist im Container nicht dauerhaft und wird nach jedem Neustart neu geladen.
+- Lokal testen: `docker build -t pv-backend .` und `docker run -p 8000:8000 pv-backend`.

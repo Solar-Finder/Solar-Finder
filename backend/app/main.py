@@ -13,6 +13,7 @@ Neu laden:  python -m app.refresh [mastr|osm]
 """
 from __future__ import annotations
 
+import os
 import threading
 from contextlib import asynccontextmanager
 from typing import Literal, Optional
@@ -67,10 +68,14 @@ Diese Datei wird erzeugt mit `python -m app.export_openapi` (im Ordner `backend/
 
 app = FastAPI(title="PV-Prognose Pforzheim", version="0.4.0", description=API_DESCRIPTION, lifespan=lifespan)
 app.add_middleware(GZipMiddleware, minimum_size=2000)  # Gebäude-/Punktlisten sind groß
+# Das Frontend ruft das Backend direkt aus dem Browser auf.
+# Im Deployment: CORS_ORIGINS="https://meine-app.vercel.app" (kommagetrennt) und optional
+# CORS_ORIGIN_REGEX="https://meine-app-.*\.vercel\.app" für Vercel-Vorschau-Deployments.
+CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    # Das Frontend ruft das Backend direkt aus dem Browser auf
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", *CORS_ORIGINS],
+    allow_origin_regex=os.environ.get("CORS_ORIGIN_REGEX") or None,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
@@ -173,3 +178,9 @@ def post_forecast(req: ForecastRequest):
 
 
 app.include_router(api)
+
+
+@app.get("/healthz", include_in_schema=False)
+def healthz():
+    """Health-Check für das Hosting (Render) – antwortet sofort, auch während das Datenmodell lädt."""
+    return {"ok": True}
