@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 import time
 from datetime import date
@@ -18,7 +19,8 @@ from typing import Any, Callable
 
 log = logging.getLogger(__name__)
 
-DATA_DIR = Path(__file__).resolve().parents[3] / "data"
+# Überschreibbar mit PV_DATA_DIR (z. B. im Docker-Container)
+DATA_DIR = Path(os.environ.get("PV_DATA_DIR") or Path(__file__).resolve().parents[3] / "data")
 CACHE_DIR = DATA_DIR / "cache"
 DAY = 24 * 3600
 
@@ -37,7 +39,8 @@ def _read(path: Path) -> Any:
 
 
 def _write(path: Path, data: Any) -> None:
-    tmp = path.with_suffix(".tmp")
+    # Eindeutiger Name je Thread: parallele Abrufe derselben Quelle überschreiben sich sonst die .tmp-Datei
+    tmp = path.with_suffix(f".{os.getpid()}-{threading.get_ident()}.tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     tmp.replace(path)
 

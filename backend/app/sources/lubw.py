@@ -18,9 +18,11 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
+from .cache import DATA_DIR as _DATA_ROOT
+
 log = logging.getLogger(__name__)
 
-DATA_DIR = Path(__file__).resolve().parents[3] / "data" / "8231_Solarpotenzial_Dachseiten_Pforzheim_Stadt"
+DATA_DIR = _DATA_ROOT / "8231_Solarpotenzial_Dachseiten_Pforzheim_Stadt"
 FILENAME = "8231_Solarpotenzial_Dachseiten_Pforzheim_Stadt.shp"
 
 COLUMNS = ["BuildingID", "Eignung", "RoofType", "Power", "Yield", "CO2Savings", "Area3D", "PvArea", "JAHR", "HERKUNFT"]

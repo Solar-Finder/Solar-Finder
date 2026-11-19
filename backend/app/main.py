@@ -13,6 +13,7 @@ Neu laden:  python -m app.refresh [mastr|osm]
 """
 from __future__ import annotations
 
+import os
 import threading
 from contextlib import asynccontextmanager
 from typing import Literal, Optional
@@ -69,8 +70,10 @@ app = FastAPI(title="PV-Prognose Pforzheim", version="0.4.0", description=API_DE
 app.add_middleware(GZipMiddleware, minimum_size=2000)  # Gebäude-/Punktlisten sind groß
 app.add_middleware(
     CORSMiddleware,
-    # Das Frontend ruft das Backend direkt aus dem Browser auf
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    # Das Frontend ruft das Backend direkt aus dem Browser auf.
+    # Weitere Adressen (z. B. die öffentliche Domain) kommagetrennt in CORS_ORIGINS.
+    allow_origins=[o.strip() for o in os.environ.get(
+        "CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",") if o.strip()],
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
