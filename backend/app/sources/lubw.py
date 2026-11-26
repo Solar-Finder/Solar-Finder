@@ -47,7 +47,7 @@ def path() -> Path:
 
 
 def _best_class(values: pd.Series) -> int:
-    present = set(int(v) for v in values)
+    present = {int(v) for v in values}
     return next(c for c in CLASS_RANK if c in present) if present & set(CLASS_RANK) else int(min(present))
 
 
@@ -114,7 +114,7 @@ def load() -> dict:
 
     s = faces[suitable]
     totals = {
-        "roof_faces": int(len(faces)),
+        "roof_faces": len(faces),
         "buildings": len(buildings),
         "potential_kwp": float(s["Power"].sum()),
         "potential_kwh_per_year": float(s["Yield"].sum()),

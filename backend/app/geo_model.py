@@ -18,11 +18,9 @@ Wird ein abgelaufener OSM-Stand im Hintergrund erneuert, baut sich das Modell da
 from __future__ import annotations
 
 import logging
-import math
 import threading
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Optional
 
 from shapely import STRtree
 from shapely.geometry import Point, mapping, shape
@@ -86,11 +84,11 @@ class Building:
     roof_faces: int
     suitable_roof_faces: int
     category: str = "other"
-    building_type: Optional[str] = None  # OSM building=*
-    alkis_function: Optional[str] = None  # ALKIS-Gebäudefunktion (LGL LoD2)
-    osm_id: Optional[str] = None
-    name: Optional[str] = None
-    postal_code: Optional[str] = None
+    building_type: str | None = None  # OSM building=*
+    alkis_function: str | None = None  # ALKIS-Gebäudefunktion (LGL LoD2)
+    osm_id: str | None = None
+    name: str | None = None
+    postal_code: str | None = None
     installed_kwp: float = 0.0
     mastr_ids: list = field(default_factory=list)
     osm_solar: bool = False
@@ -121,7 +119,7 @@ class Model:
 
 
 _lock = threading.Lock()
-_model: Optional[Model] = None
+_model: Model | None = None
 
 
 def get_model() -> Model:
@@ -157,7 +155,7 @@ def is_roof_unit(u: dict) -> bool:
 def _optional(loader, name):
     try:
         return loader()
-    except Exception:  # noqa: BLE001 – OSM ist Zusatzinformation
+    except Exception:
         log.exception("OSM-Daten „%s“ nicht verfügbar – fahre ohne fort", name)
         return None
 
@@ -221,7 +219,7 @@ def _build() -> Model:
     tree = STRtree([b.geom for b in buildings])
     radius_deg = MATCH_RADIUS_M / _MY
 
-    def match(lon: float, lat: float) -> Optional[Building]:
+    def match(lon: float, lat: float) -> Building | None:
         p = Point(lon, lat)
         hits = tree.query(p, predicate="intersects")
         if len(hits):

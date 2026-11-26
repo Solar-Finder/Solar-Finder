@@ -24,8 +24,6 @@ import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
 from datetime import date
-from pathlib import Path
-from typing import Optional
 
 from .cache import DATA_DIR
 
@@ -53,7 +51,7 @@ PARKING = {2461, 2462, 2465}                                     # Parkhaus, Par
 ANCILLARY_STRUCTURES = {1610, 1611}                              # 51009: Überdachung, Carport
 
 
-def category_for(code: Optional[str]) -> Optional[str]:
+def category_for(code: str | None) -> str | None:
     """ALKIS-Funktionscode (z. B. '31001_1010') → Kategorie; None, wenn kein Code vorliegt."""
     if not code:
         return None
@@ -84,7 +82,7 @@ def category_for(code: Optional[str]) -> Optional[str]:
 
 
 # ---------------- Laden (Laufzeit) ----------------
-def load() -> Optional[dict]:
+def load() -> dict | None:
     """Aufbereitete Zuordnung oder None, wenn sie noch nicht erzeugt wurde."""
     if not PATH.exists():
         return None
@@ -102,7 +100,7 @@ def _tiles(points_utm) -> list[tuple[int, int]]:
     return sorted(tiles)
 
 
-def _download(e: int, n: int, folder: str) -> Optional[str]:
+def _download(e: int, n: int, folder: str) -> str | None:
     url = TILE_URL.format(e=e, n=n)
     target = os.path.join(folder, f"LoD2_{e}_{n}.zip")
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})

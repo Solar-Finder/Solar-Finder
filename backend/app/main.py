@@ -16,7 +16,7 @@ from __future__ import annotations
 import os
 import threading
 from contextlib import asynccontextmanager
-from typing import Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, FastAPI, HTTPException, Path, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,12 +24,11 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from . import data_service as ds
 from .geo_model import get_model
-from .sources import tiles
 from .schemas import (
+    Breakdown,
     BuildingCategory,
     BuildingCollection,
     BuildingPoints,
-    Breakdown,
     ForecastRequest,
     ForecastResponse,
     InstallationCollection,
@@ -39,6 +38,7 @@ from .schemas import (
     Status,
     SuitabilityClass,
 )
+from .sources import tiles
 
 
 @asynccontextmanager
@@ -90,21 +90,21 @@ def get_meta():
 
 
 @api.get("/status", response_model=Status, tags=["status"])
-def get_status(postal_code: Optional[str] = None):
+def get_status(postal_code: str | None = None):
     return ds.status(postal_code)
 
 
 @api.get("/map/postal-areas", response_model=PostalAreaCollection, tags=["map"])
-def get_postal_areas(postal_code: Optional[str] = None):
+def get_postal_areas(postal_code: str | None = None):
     return ds.postal_areas(postal_code)
 
 
 @api.get("/map/buildings", response_model=BuildingCollection, tags=["map"])
 def get_buildings(
-    bbox: Optional[str] = Query(None, description="minLon,minLat,maxLon,maxLat – empfohlen, sonst sehr viele Gebäude"),
-    postal_code: Optional[str] = None,
-    category: Optional[list[BuildingCategory]] = CategoryQ,
-    solar_status: Optional[list[SolarStatus]] = Query(None, description="existing, potential, none"),
+    bbox: str | None = Query(None, description="minLon,minLat,maxLon,maxLat – empfohlen, sonst sehr viele Gebäude"),
+    postal_code: str | None = None,
+    category: list[BuildingCategory] | None = CategoryQ,
+    solar_status: list[SolarStatus] | None = Query(None, description="existing, potential, none"),
     limit: int = Query(ds.MAX_BUILDINGS, ge=1, le=ds.MAX_BUILDINGS),
 ):
     return ds.buildings(bbox, postal_code, category, solar_status, limit)
@@ -112,9 +112,9 @@ def get_buildings(
 
 @api.get("/map/building-points", response_model=BuildingPoints, tags=["map"])
 def get_building_points(
-    postal_code: Optional[str] = None,
-    category: Optional[list[BuildingCategory]] = CategoryQ,
-    solar_status: Optional[list[SolarStatus]] = Query(None, description="existing, potential, none (Standard: alle)"),
+    postal_code: str | None = None,
+    category: list[BuildingCategory] | None = CategoryQ,
+    solar_status: list[SolarStatus] | None = Query(None, description="existing, potential, none (Standard: alle)"),
 ):
     """Alle Gebäude als Punkte – für die Übersicht bei kleinem Maßstab (ohne Grundrisse)."""
     return ds.building_points(postal_code, category, solar_status)
@@ -122,10 +122,10 @@ def get_building_points(
 
 @api.get("/map/installations", response_model=InstallationCollection, tags=["map"])
 def get_installations(
-    bbox: Optional[str] = None,
-    postal_code: Optional[str] = None,
-    max_power_kwp: Optional[float] = None,
-    category: Optional[list[BuildingCategory]] = CategoryQ,
+    bbox: str | None = None,
+    postal_code: str | None = None,
+    max_power_kwp: float | None = None,
+    category: list[BuildingCategory] | None = CategoryQ,
 ):
     """Verortete MaStR-Anlagen. Mit `category` nur Anlagen auf Gebäuden dieser Kategorie(n)."""
     return ds.installations(bbox, postal_code, max_power_kwp, category)
@@ -134,9 +134,9 @@ def get_installations(
 def _stats_route(path: str, fn):
     @api.get(path, response_model=Breakdown, tags=["stats"])
     def route(
-        postal_code: Optional[str] = None,
-        category: Optional[list[BuildingCategory]] = CategoryQ,
-        suitability: Optional[list[SuitabilityClass]] = SuitabilityQ,
+        postal_code: str | None = None,
+        category: list[BuildingCategory] | None = CategoryQ,
+        suitability: list[SuitabilityClass] | None = SuitabilityQ,
     ):
         return fn(postal_code, category, suitability)
 

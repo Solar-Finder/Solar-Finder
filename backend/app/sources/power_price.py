@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 import logging
 import urllib.request
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from .cache import DAY, cached
 
@@ -35,7 +35,7 @@ def _get(url: str) -> dict:
 
 def _year_of(ts_ms: int) -> int:
     # Zeitstempel = Jahresbeginn in deutscher Zeit (z. B. 31.12. 23:00 UTC) → ein paar Stunden addieren
-    return (datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc) + timedelta(hours=12)).year
+    return (datetime.fromtimestamp(ts_ms / 1000, tz=UTC) + timedelta(hours=12)).year
 
 
 def _fetch() -> dict:

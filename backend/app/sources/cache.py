@@ -13,9 +13,10 @@ import logging
 import os
 import threading
 import time
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -65,14 +66,14 @@ def _refresh_in_background(name: str, path: Path, fetch: Callable[[], Any]) -> N
             log.info("%s ist abgelaufen – aktualisiere im Hintergrund …", name)
             _write(path, fetch())
             log.info("%s aktualisiert", name)
-        except Exception:  # noqa: BLE001 – alter Stand bleibt gültig
+        except Exception:
             log.warning("Aktualisierung von %s fehlgeschlagen – verwende weiter den vorhandenen Stand",
                         name, exc_info=True)
             return
         for cb in _listeners:
             try:
                 cb(name)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 log.exception("Fehler nach Aktualisierung von %s", name)
 
     threading.Thread(target=run, name=f"refresh-{name}", daemon=True).start()
@@ -97,7 +98,7 @@ def cached(name: str, max_age_s: float, fetch: Callable[[], Any], force: bool = 
     try:
         log.info("Lade %s neu …", name)
         new = fetch()
-    except Exception:  # noqa: BLE001 – Netzwerkfehler sollen den Betrieb nicht stoppen
+    except Exception:
         if data is not None:
             log.exception("Neuladen von %s fehlgeschlagen – verwende veralteten Stand", name)
             return data

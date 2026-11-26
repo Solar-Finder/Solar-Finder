@@ -17,7 +17,6 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Optional
 
 from .cache import CACHE_DIR, DAY
 
@@ -65,7 +64,7 @@ def get_tile(basemap: str, z: int, x: int, y: int) -> tuple[bytes, str]:
         raise TileNotFound(f"{basemap}/{z}/{x}/{y}")
 
     path = TILE_DIR / basemap / str(z) / str(x) / str(y)
-    cached: Optional[bytes] = path.read_bytes() if path.exists() else None
+    cached: bytes | None = path.read_bytes() if path.exists() else None
     if cached is not None and time.time() - path.stat().st_mtime < MAX_AGE_S:
         return cached, _sniff_type(cached)
 
@@ -77,7 +76,7 @@ def get_tile(basemap: str, z: int, x: int, y: int) -> tuple[bytes, str]:
         if e.code == 404:
             raise TileNotFound(f"{basemap}/{z}/{x}/{y}") from e
         raise
-    except Exception:  # noqa: BLE001 – Netzwerkfehler: veralteten Stand liefern, falls vorhanden
+    except Exception:
         if cached is not None:
             log.warning("Kachel %s/%s/%s/%s nicht abrufbar – verwende Cache", basemap, z, x, y)
             return cached, _sniff_type(cached)

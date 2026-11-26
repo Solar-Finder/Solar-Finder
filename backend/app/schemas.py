@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date
 from enum import Enum, IntEnum
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -77,8 +77,8 @@ class ElectricityPrice(BaseModel):
 class DataSource(BaseModel):
     name: str
     url: str
-    retrieved_at: Optional[date] = None
-    note: Optional[str] = None
+    retrieved_at: date | None = None
+    note: str | None = None
 
 
 class Meta(BaseModel):
@@ -125,14 +125,14 @@ class PolygonGeometry(BaseModel):
 
 class InstallationProps(BaseModel):
     power_kwp: float
-    commissioned_on: Optional[date] = None
-    postal_code: Optional[str] = None
-    street: Optional[str] = None
-    house_number: Optional[str] = None
-    plant_type: Optional[str] = None
-    building_use: Optional[str] = None
-    building_id: Optional[str] = None
-    building_point: Optional[tuple[float, float]] = None  # Mitte des zugeordneten Gebäudes (lon, lat)
+    commissioned_on: date | None = None
+    postal_code: str | None = None
+    street: str | None = None
+    house_number: str | None = None
+    plant_type: str | None = None
+    building_use: str | None = None
+    building_id: str | None = None
+    building_point: tuple[float, float] | None = None  # Mitte des zugeordneten Gebäudes (lon, lat)
 
 
 class InstallationFeature(BaseModel):
@@ -153,15 +153,15 @@ class BuildingProfile(BaseModel):
     roof_area_m2: float                     # LUBW Σ Area3D (geneigte Dachfläche)
     pv_area_m2: float                       # LUBW Σ PvArea, Klassen 1–3
     installed_known: bool                   # False: Anlage nur in OSM erfasst, Leistung unbekannt
-    utilization_pct: Optional[float] = None # installiert ÷ Potenzial × 100, höchstens 100 (nur mit Anlage)
-    open_kwp: Optional[float] = None        # Potenzial − installiert, ≥ 0
-    price_eur_per_kwp: Optional[float] = None
+    utilization_pct: float | None = None # installiert ÷ Potenzial × 100, höchstens 100 (nur mit Anlage)
+    open_kwp: float | None = None        # Potenzial − installiert, ≥ 0
+    price_eur_per_kwp: float | None = None
     price_outside_table: bool = False       # Ausbau größer als die Preistabelle (letzter Preis verwendet)
-    investment_eur: Optional[float] = None
-    operating_cost_eur_per_year: Optional[float] = None
-    energy_kwh_per_year: Optional[float] = None  # 1. Jahr, danach −0,25 % je Jahr (Alterung)
-    co2_savings_kg_per_year: Optional[float] = None
-    amortization_years: Optional[float] = None  # Σ Stromwert ≥ Anschaffung (ohne laufende Kosten); None: nicht in 100 J.
+    investment_eur: float | None = None
+    operating_cost_eur_per_year: float | None = None
+    energy_kwh_per_year: float | None = None  # 1. Jahr, danach −0,25 % je Jahr (Alterung)
+    co2_savings_kg_per_year: float | None = None
+    amortization_years: float | None = None  # Σ Stromwert ≥ Anschaffung (ohne laufende Kosten); None: nicht in 100 J.
     electricity_price_ct_per_kwh: float     # SMARD Day-Ahead, Jahresmittel des letzten vollen Jahres; sonst Beispielwert
     electricity_price_is_example: bool = False
     price_increase_ct_per_kwh_per_year: float = 0.0  # jährliche Strompreissteigerung (Energieatlas BW)
@@ -171,10 +171,10 @@ class BuildingProfile(BaseModel):
 
 class BuildingProps(BaseModel):
     category: BuildingCategory          # aus OSM; ohne OSM-Treffer "other"
-    building_type: Optional[str] = None # OSM building=*
-    alkis_function: Optional[str] = None  # ALKIS-Gebäudefunktion, z. B. "31001_1010" (LGL LoD2)
-    name: Optional[str] = None
-    osm_id: Optional[str] = None
+    building_type: str | None = None # OSM building=*
+    alkis_function: str | None = None  # ALKIS-Gebäudefunktion, z. B. "31001_1010" (LGL LoD2)
+    name: str | None = None
+    osm_id: str | None = None
     footprint_m2: float                 # Fläche der vereinigten LUBW-Dachseiten
     solar_status: SolarStatus
     installed_kwp: float = 0.0          # Summe der zugeordneten MaStR-Anlagen
@@ -185,10 +185,10 @@ class BuildingProps(BaseModel):
     co2_savings_kg_per_year: float = 0.0  # LUBW Σ CO2Savings, Klassen 1–3
     roof_faces: int = 0
     suitable_roof_faces: int = 0        # Dachseiten der Klassen 1–3
-    suitability: Optional[SuitabilityClass] = None  # beste Klasse des Gebäudes
-    roof_type: Optional[RoofType] = None
-    postal_code: Optional[str] = None
-    profile: Optional[BuildingProfile] = None
+    suitability: SuitabilityClass | None = None  # beste Klasse des Gebäudes
+    roof_type: RoofType | None = None
+    postal_code: str | None = None
+    profile: BuildingProfile | None = None
 
 
 class BuildingFeature(BaseModel):
@@ -214,7 +214,7 @@ class BuildingPoints(BaseModel):
 
 class PostalAreaProps(BaseModel):
     postal_code: str
-    name: Optional[str] = None
+    name: str | None = None
     installed_power_mwp: float
     installed_roof_power_mwp: float
     potential_power_mwp: float
@@ -225,7 +225,7 @@ class PostalAreaProps(BaseModel):
     balcony_count: int
     buildings_with_solar: int
     buildings_with_potential: int
-    label_point: Optional[tuple[float, float]] = None  # (lon, lat)
+    label_point: tuple[float, float] | None = None  # (lon, lat)
 
 
 class PostalAreaFeature(BaseModel):
@@ -253,7 +253,7 @@ class BreakdownItem(BaseModel):
 class Breakdown(BaseModel):
     basis: Literal["count"] = "count"
     data_status: DataStatus
-    note: Optional[str] = None
+    note: str | None = None
     items: list[BreakdownItem]
 
 
@@ -278,8 +278,8 @@ class ForecastAssumptions(BaseModel):
     co2_kg_per_kwh: float                   # LUBW Σ CO2Savings / Σ Yield
     consumption_gwh_per_year: float
     price_increase_ct_per_kwh_per_year: float = 0.0  # jährliche Strompreissteigerung
-    price_increase_source: Optional[str] = None
-    price_increase_url: Optional[str] = None
+    price_increase_source: str | None = None
+    price_increase_url: str | None = None
     degradation_pct_per_year: float = 0.0  # Ertragsminderung durch Alterung je Jahr
     status: dict[str, DataStatus]           # Herkunft je Annahme (verified = aus Daten, example = Beispielwert)
 
@@ -296,7 +296,7 @@ class ForecastResponse(BaseModel):
     profit_eur: float                  # Σ Stromwert (Jahr 1…T) − investment_eur
     electricity_value_eur_per_year: float  # Ø über den Zeitraum (Strompreis steigt, Ertrag sinkt)
     operating_cost_eur_per_year: float  # Instandhaltung pro Jahr (in investment_eur enthalten)
-    amortization_years: Optional[float]  # Σ Stromwert ≥ Anschaffung (ohne Instandhaltung)
+    amortization_years: float | None  # Σ Stromwert ≥ Anschaffung (ohne Instandhaltung)
     energy_per_year_mwh: float          # Ø über den Zeitraum (mit Alterung)
     energy_total_mwh: float             # Σ Jahr 1…T (mit Alterung)
     consumption_gwh_per_year: float
