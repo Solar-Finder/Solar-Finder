@@ -15,14 +15,13 @@ Beispielwerte (keine Quelle im Projekt): Investition €/kWp im Rechner, Stromve
 """
 from __future__ import annotations
 
+import logging
+from collections.abc import Iterable
 from datetime import date
-from typing import Iterable, Optional
 
 from shapely.geometry import Point, box
 
 from .geo_model import Building, get_model, is_roof_unit
-import logging
-
 from .sources import alkis, costs, power_price
 
 log = logging.getLogger(__name__)
@@ -65,7 +64,7 @@ def _value_for_year(year: int, energy0_kwh: float, price0_ct: float) -> float:
     return _energy_for_year(year, energy0_kwh) * _price_for_year(year, price0_ct) / 100
 
 
-def _amortization(purchase: float, energy0_kwh: float, price0_ct: float) -> Optional[float]:
+def _amortization(purchase: float, energy0_kwh: float, price0_ct: float) -> float | None:
     """Zeitpunkt (Jahre, anteilig im Jahr), ab dem Σ Stromwert die Anschaffungskosten deckt.
 
     Gerechnet nur mit den Anschaffungskosten – laufende Kosten/Instandhaltung zählen hier nicht.
@@ -86,7 +85,7 @@ def electricity_price() -> dict:
     ohne Abruf/Cache: gekennzeichneter Beispielwert."""
     try:
         p = power_price.load()
-    except Exception:  # noqa: BLE001 – Netzwerkfehler sollen den Betrieb nicht stoppen
+    except Exception:
         log.exception("Strompreis nicht abrufbar – verwende Beispielwert")
         return {"value_ct_per_kwh": ELECTRICITY_PRICE_FALLBACK_CT, "source": "Beispielwert", "is_example": True,
                 "year": None, "retrieved_at": None}
@@ -122,7 +121,7 @@ def _opts(d: dict):
     return [{"value": k, "label": v} for k, v in d.items()]
 
 
-def _iso(d: Optional[str]) -> Optional[date]:
+def _iso(d: str | None) -> date | None:
     return date.fromisoformat(d) if d else None
 
 
@@ -130,7 +129,7 @@ def _pct(part: float, whole: float) -> float:
     return round(part / whole * 100, 1) if whole else 0.0
 
 
-def _totals(postal_code: Optional[str] = None) -> dict:
+def _totals(postal_code: str | None = None) -> dict:
     """Bestand (MaStR) und Potenzial (LUBW) in kWp bzw. kWh/a."""
     m = get_model()
     units = [u for u in m.units if not postal_code or u["postal_code"] == postal_code]
@@ -200,7 +199,7 @@ def meta():
     }
 
 
-def status(postal_code: Optional[str] = None):
+def status(postal_code: str | None = None):
     m = get_model()
     t = _totals(postal_code)
     units = t["units"]
@@ -248,7 +247,7 @@ def postal_areas(postal_code=None):
     return {"type": "FeatureCollection", "features": feats, "potential_status": DataStatus.verified}
 
 
-def _bbox(bbox: Optional[str]):
+def _bbox(bbox: str | None):
     if not bbox:
         return None
     x0, y0, x1, y1 = (float(v) for v in bbox.split(","))
@@ -362,7 +361,7 @@ def buildings(bbox=None, postal_code=None, category=None, solar_status=None, lim
     return {"type": "FeatureCollection", "features": feats, "truncated": truncated}
 
 
-def installations(bbox=None, postal_code=None, max_power_kwp: Optional[float] = None, category=None):
+def installations(bbox=None, postal_code=None, max_power_kwp: float | None = None, category=None):
     """Verortete MaStR-Anlagen; mit `category` nur solche, deren zugeordnetes Gebäude passt
     (Anlagen ohne zugeordnetes Gebäude fallen dann weg, ihre Kategorie ist unbekannt)."""
     m = get_model()

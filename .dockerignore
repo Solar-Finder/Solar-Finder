@@ -1,0 +1,10 @@
+# Build-Kontext des Backends (Repository-Wurzel). Das Frontend hat einen eigenen Kontext.
+.git
+.claude
+frontend
+docs
+**/__pycache__
+**/*.pyc
+**/.venv
+data/cache
+node_modules

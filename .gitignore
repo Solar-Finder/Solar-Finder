@@ -1,2 +1,8 @@
 # Heruntergeladene Daten (MaStR) – werden automatisch neu geladen. OSM-Stand liegt in data/osm/ (im Git).
 data/cache/
+
+# Lokale Docker-Einstellungen (Vorlage: .env.example)
+.env
+
+# Lokale Stammzertifikate für den Docker-Build (siehe certs/README.md)
+certs/*.crt

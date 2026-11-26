@@ -1,0 +1,20 @@
+# deploy/docker-compose.yml
+services:
+  backend:
+    image: ghcr.io/galacticcodegambit/solar-finder-backend:${IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      CORS_ORIGINS: ${CORS_ORIGINS}
+    volumes:
+      - backend-cache:/app/data/cache
+    networks: [proxy]
+  frontend:
+    image: ghcr.io/galacticcodegambit/solar-finder-frontend:${IMAGE_TAG}
+    restart: unless-stopped
+    depends_on: [backend]
+    networks: [proxy]
+volumes:
+  backend-cache:
+networks:
+  proxy:
+    external: true

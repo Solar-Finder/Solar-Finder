@@ -10,15 +10,18 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 import time
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 log = logging.getLogger(__name__)
 
-DATA_DIR = Path(__file__).resolve().parents[3] / "data"
+# Überschreibbar mit PV_DATA_DIR (z. B. im Docker-Container)
+DATA_DIR = Path(os.environ.get("PV_DATA_DIR") or Path(__file__).resolve().parents[3] / "data")
 CACHE_DIR = DATA_DIR / "cache"
 DAY = 24 * 3600
 
@@ -37,7 +40,8 @@ def _read(path: Path) -> Any:
 
 
 def _write(path: Path, data: Any) -> None:
-    tmp = path.with_suffix(".tmp")
+    # Eindeutiger Name je Thread: parallele Abrufe derselben Quelle überschreiben sich sonst die .tmp-Datei
+    tmp = path.with_suffix(f".{os.getpid()}-{threading.get_ident()}.tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     tmp.replace(path)
 
@@ -62,14 +66,14 @@ def _refresh_in_background(name: str, path: Path, fetch: Callable[[], Any]) -> N
             log.info("%s ist abgelaufen – aktualisiere im Hintergrund …", name)
             _write(path, fetch())
             log.info("%s aktualisiert", name)
-        except Exception:  # noqa: BLE001 – alter Stand bleibt gültig
+        except Exception:
             log.warning("Aktualisierung von %s fehlgeschlagen – verwende weiter den vorhandenen Stand",
                         name, exc_info=True)
             return
         for cb in _listeners:
             try:
                 cb(name)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 log.exception("Fehler nach Aktualisierung von %s", name)
 
     threading.Thread(target=run, name=f"refresh-{name}", daemon=True).start()
@@ -94,7 +98,7 @@ def cached(name: str, max_age_s: float, fetch: Callable[[], Any], force: bool = 
     try:
         log.info("Lade %s neu …", name)
         new = fetch()
-    except Exception:  # noqa: BLE001 – Netzwerkfehler sollen den Betrieb nicht stoppen
+    except Exception:
         if data is not None:
             log.exception("Neuladen von %s fehlgeschlagen – verwende veralteten Stand", name)
             return data

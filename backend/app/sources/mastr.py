@@ -11,8 +11,7 @@ import logging
 import re
 import urllib.parse
 import urllib.request
-from datetime import date, datetime, timezone
-from typing import Optional
+from datetime import UTC, date, datetime
 
 from .cache import DAY, cached
 from .osm import POSTAL_CODES
@@ -42,12 +41,12 @@ _FIELDS = {
 }
 
 
-def _parse_date(v: Optional[str]) -> Optional[str]:
+def _parse_date(v: str | None) -> str | None:
     """'/Date(1369612800000)/' → '2013-05-27'"""
     m = re.match(r"/Date\((-?\d+)\)/", v or "")
     if not m:
         return None
-    return datetime.fromtimestamp(int(m.group(1)) / 1000, tz=timezone.utc).date().isoformat()
+    return datetime.fromtimestamp(int(m.group(1)) / 1000, tz=UTC).date().isoformat()
 
 
 def _fetch() -> dict:

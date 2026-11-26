@@ -1,0 +1,37 @@
+# Start:   docker compose up -d --build
+# Website: http://localhost:3000   API: http://localhost:8000/docs
+#
+# Für einen Server mit eigener Domain die Werte in einer Datei .env neben dieser Datei setzen
+# (Vorlage: .env.example) und neu bauen.
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: pv-prognose-backend
+    restart: unless-stopped
+    environment:
+      # Adresse(n) der Website, kommagetrennt – sonst blockiert der Browser die API-Aufrufe (CORS)
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - backend-cache:/app/data/cache
+
+  frontend:
+    build:
+      context: ./frontend
+      additional_contexts:
+        certs: ./certs
+      args:
+        # Adresse des Backends aus Sicht des Browsers; leer = <Hostname der Website>:8000
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+    image: pv-prognose-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+
+volumes:
+  backend-cache:
