@@ -1,0 +1,10 @@
+# Ruff-Konfiguration für Backend und Tests (gilt für `ruff check app tests`)
+target-version = "py312"
+
+[lint]
+# date.today() ist hier gewollt: Datenstände werden als lokales Kalenderdatum gespeichert.
+ignore = ["DTZ011"]
+
+[lint.flake8-bugbear]
+# FastAPI-Parameter wie Query(...) im Funktionskopf sind das vorgesehene Muster, kein Fehler.
+extend-immutable-calls = ["fastapi.Query", "fastapi.Path", "fastapi.Body", "fastapi.Depends"]

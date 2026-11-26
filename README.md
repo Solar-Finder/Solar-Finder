@@ -118,11 +118,20 @@ für genau dieses Dach.
 .
 ├── README.md                     ← diese Dokumentation
 ├── docker-compose.yml            ← startet Backend und Frontend als Container (Abschnitt 8.4)
+├── .github/workflows/
+│   └── pipeline.yml              ← CI: Lint, Tests, API-Vertrag, Docker-Build (Abschnitt 8.5)
+├── deploy/
+│   └── docker-compose.yml        ← Server-Betrieb mit fertigen Images je Stage (Abschnitt 8.5)
 ├── .env.example                  ← Vorlage für Docker-Einstellungen (Domain, Ports)
 ├── certs/                        ← optionale Zusatz-Zertifikate für den Docker-Build (Virenscanner/Proxy)
 ├── backend/                      ← Python-Backend (FastAPI)
 │   ├── Dockerfile                ← Container-Image des Backends (inkl. data/)
-│   ├── requirements.txt          ← Python-Pakete
+│   ├── requirements.txt          ← Python-Pakete (Laufzeit, im Docker-Image)
+│   ├── requirements-dev.txt      ← zusätzlich für Entwicklung und CI (pytest, httpx, ruff)
+│   ├── ruff.toml                 ← Regeln für die Code-Prüfung mit ruff
+│   ├── tests/
+│   │   ├── unit/                 ← schnelle Tests der Rechenlogik, ohne Netzwerk
+│   │   └── integration/          ← HTTP-Tests gegen ein laufendes Backend
 │   └── app/
 │       ├── main.py               ← Einstiegspunkt, alle API-Endpunkte (/api/v1/…)
 │       ├── data_service.py       ← Kennzahlen, Prognose, Gebäude-Steckbrief, Konstanten
@@ -443,6 +452,10 @@ Automatisch geladene Daten (MaStR, Strompreis, Kartenkacheln) liegen im Docker-V
 Typischer Aufbau auf einem Server: ein Reverse-Proxy (z. B. nginx, Traefik, Caddy) übernimmt HTTPS
 und leitet die Website-Domain auf Port 3000 und die API-Domain auf Port 8000 weiter.
 
+> Die `docker-compose.yml` im Hauptordner **baut** die Images selbst und ist für die Entwicklung und
+> einen einfachen Betrieb gedacht. Für den automatisierten Betrieb mit Staging und Production gibt es
+> `deploy/docker-compose.yml`, die fertige Images aus der GitHub Container Registry startet (Abschnitt 8.5).
+
 **Daten im Container neu laden:** `docker compose exec backend python -m app.refresh`
 (bzw. `… refresh mastr`), danach `docker compose restart backend`. Ein neuer LUBW-Datensatz wird in
 `data/` abgelegt und mit `docker compose up -d --build` in das Image übernommen.
@@ -452,6 +465,41 @@ und leitet die Website-Domain auf Port 3000 und die API-Domain auf Port 8000 wei
 > (`CERTIFICATE_VERIFY_FAILED`, `SELF_SIGNED_CERT_IN_CHAIN`), bricht der Scanner die Verbindung auf.
 > Dann das Stammzertifikat des Scanners als `.crt` in den Ordner `certs/` legen und neu bauen –
 > Anleitung in [`certs/README.md`](certs/README.md).
+
+### 8.5 Tests und CI/CD
+
+**Tests lokal ausführen** (im Ordner `backend`, Python-Umgebung aus 8.1):
+
+| Aufgabe | Befehl |
+|---|---|
+| Entwicklungs-Pakete installieren *(nur beim ersten Mal)* | `.venv\Scripts\pip install -r requirements-dev.txt` |
+| Code prüfen | `.venv\Scripts\python -m ruff check app tests` |
+| Unit-Tests (ohne laufendes Backend, wenige Sekunden) | `.venv\Scripts\python -m pytest tests/unit` |
+| Integrationstests (Backend muss laufen, siehe 8.1 oder 8.4) | `.venv\Scripts\python -m pytest tests/integration` |
+
+Die Integrationstests warten bis zu 5 Minuten, bis `/api/v1/meta` antwortet (erster Start mit
+MaStR-Download). Eine andere Adresse setzt `API_BASE_URL`, z. B.
+`$env:API_BASE_URL="http://localhost:8000/api/v1"`. In der Kurzausgabe von pytest steht `x` für einen
+**erwarteten** Fehlschlag (bekannter, noch offener Fehler); `python -m pytest -rx` zeigt den Grund.
+
+**Pipeline auf GitHub** (`.github/workflows/pipeline.yml`) – läuft bei jedem Pull Request auf `main`
+und bei jedem Merge in `main`:
+
+| Job | Prüft |
+|---|---|
+| `unit-tests` | ruff, Unit-Tests, ob `docs/api/openapi.json` zum Code passt, Build des Frontends |
+| `integration-tests` | startet beide Container mit `docker compose` und führt die Integrationstests aus |
+| `docker-build (backend)`, `docker-build (frontend)` | baut die Images; bei `main` zusätzlich Push nach `ghcr.io/galacticcodegambit/solar-finder-*:sha-<commit>` |
+
+Schlägt `unit-tests` mit einem Unterschied in `openapi.json` fehl, wurde ein Schema geändert, ohne
+den Vertrag neu zu erzeugen: `python -m app.export_openapi` ausführen und die Datei mit committen.
+
+**Stages:** Entwickelt wird auf Feature-Branches (Dev). Nach dem Merge in `main` wird das Image
+automatisch auf **Staging** ausgerollt und dort von Hand getestet; **Production** bekommt dasselbe Image
+erst über ein GitHub Release (`v1.2.0`). Das Frontend-Image wird dafür mit
+`NEXT_PUBLIC_API_URL=/api/v1` gebaut; der Reverse-Proxy leitet `/api/*` ans Backend und alles andere
+ans Frontend, sodass ein Image für jede Domain passt. Der vollständige Ablauf (Server, Deployment,
+Rollback) steht im Projektplan „Solar-Finder: CI/CD Schritt für Schritt umsetzen“.
 
 ---
 
@@ -464,7 +512,7 @@ Alle Befehle im Ordner `backend`:
 | alle automatisch beziehbaren Daten neu laden (MaStR, OSM, Strompreis) | `.venv\Scripts\python -m app.refresh` |
 | nur eine Quelle neu laden | `.venv\Scripts\python -m app.refresh mastr` (bzw. `osm`, `preis`) |
 | ALKIS-Gebäudefunktion neu aufbereiten (lädt einige hundert MB) | `.venv\Scripts\python -m app.refresh alkis` |
-| Schnittstellen-Vertrag neu erzeugen | `.venv\Scripts\python -m app.export_openapi` → `docs/api/openapi.json` |
+| Schnittstellen-Vertrag neu erzeugen *(nach jeder Schema-Änderung, sonst schlägt die CI fehl)* | `.venv\Scripts\python -m app.export_openapi` → `docs/api/openapi.json` |
 
 Nach dem Neuladen das Backend neu starten.
 
