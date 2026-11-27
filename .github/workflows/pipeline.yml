@@ -13,9 +13,6 @@ concurrency:
   group: pipeline-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  REGISTRY: ghcr.io/galacticcodegambit
-
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
@@ -80,6 +77,10 @@ jobs:
             file: frontend/Dockerfile
     steps:
       - uses: actions/checkout@v4
+      - name: Registry-Namensraum aus dem Repo-Besitzer ableiten
+        run: |
+          echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+          echo "Pushe nach ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         if: github.event_name == 'push'
