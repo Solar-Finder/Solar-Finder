@@ -77,7 +77,7 @@ jobs:
             file: frontend/Dockerfile
     steps:
       - uses: actions/checkout@v4
-            - name: Registry-Namensraum aus dem Repo-Besitzer ableiten
+      - name: Registry-Namensraum aus dem Repo-Besitzer ableiten
         run: |
           echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
           echo "Pushe nach ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
